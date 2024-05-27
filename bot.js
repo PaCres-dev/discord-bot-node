@@ -27,7 +27,7 @@ for (const folder of commandFolders) {
 
 bot.on('ready', () => {
     console.log('Hi, I\'m ',bot.user.tag, 'and I\'m online');
-	bot.user.setActivity("2 girls 1 cup", { type: "WATCHING" });
+	bot.user.setActivity("a movie", { type: "WATCHING" });
 });
 
 bot.on('message', async (message) => {
