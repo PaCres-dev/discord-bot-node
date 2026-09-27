@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { deleteSession, loadSession, saveSession } from './session.js';
-import { createSeenStore } from './seen-store.js';
+import { createSeenStore } from '../shared/seen-store.js';
 
 async function tempDir() {
   return mkdtemp(join(tmpdir(), 'x-test-'));

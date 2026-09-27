@@ -9,6 +9,7 @@ Bot mínimo vinculado a tu WhatsApp personal. En el chat "Mensaje a mí mismo":
 - `!ytcookies` → como texto de un documento: guarda tu sesión de YouTube (ver abajo).
 - `!video gatos` → descarga el primer video de Dailymotion (hasta 20 min, 720p) y te lo envía.
 - `!twitter` (o `!x`) → 10 tweets nuevos de tu feed "Para ti" de X (necesita configurar la cuenta, ver abajo).
+- `!noticias tech rust` (o `!news`) → la noticia más relevante de la semana sobre el tema, con resumen y link. `!noticias 3 tech rust` trae 3; sin tema (`!noticias deportes`) trae titulares de la sección. No repite noticias ya enviadas.
 - `!help` (o `!ayuda`) → lista de comandos.
 
 Solo responde a tus propios mensajes y solo en ese chat. Detalles en [SPEC.md](SPEC.md).

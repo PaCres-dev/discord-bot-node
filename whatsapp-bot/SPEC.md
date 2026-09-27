@@ -18,9 +18,10 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 | Descarga | A través del proxy de imágenes de DuckDuckGo (`external-content.duckduckgo.com`), así no hay que acceder a dominios arbitrarios |
 | SafeSearch | Desactivado |
 | Selección | Una imagen al azar del top 10; si falla la descarga, se prueba otra (máx. 5 intentos) |
-| Comandos | `!img [1-5] <texto>`, `!youtube` / `!yt <texto>`, `!audio` / `!yta <texto>`, `!ytcookies` (documento), `!video <texto>`, `!twitter` / `!x` y `!help` / `!ayuda` |
+| Comandos | `!img [1-5] <texto>`, `!youtube` / `!yt <texto>`, `!audio` / `!yta <texto>`, `!ytcookies` (documento), `!video <texto>`, `!twitter` / `!x`, `!noticias` / `!news` y `!help` / `!ayuda` |
 | YouTube | Con la sesión de YouTube del dueño (cookies importadas con `!ytcookies` desde un registro de `chrome://net-export`), `!youtube [1-6]` descarga el video con yt-dlp (H.264, hasta 720p) y lo envía en partes de 5 minutos: por defecto 1, como máximo 6 (los primeros 30 minutos). Sin sesión, o si falla, envía el link con vista previa. Sin cookies YouTube bloquea las descargas desde servidores (probado: yt-dlp, clientes alternativos, tokens PO, Invidious, Piped, cobalt, ssyoutube, loader.to). La API oficial no permite descargar |
 | X (Twitter) | `!twitter` lee el feed "Para ti" iniciando sesión como el usuario (la API oficial no da ese feed y es paga). **Estado: implementado pero sin probar en vivo**, porque todavía no hay una cuenta para usar. Se activa con `X_USERNAME`, `X_PASSWORD` y `X_EMAIL`; sin ellas responde que no está configurado |
+| Noticias | `!noticias` usa el RSS de Google News (sin API key), edición en inglés (EE.UU.), última semana, orden de relevancia de Google. Resumen = descripción publicada por la nota; el link de Google se decodifica con un servicio interno no oficial (si falla: título, medio, fecha y link de Google) |
 | Videos | `!video` busca y descarga de Dailymotion (sin API key): hasta 20 min, hasta 720p y ~90 MB. ffmpeg une los fragmentos localmente |
 | Permisos | Solo mis propios mensajes (`fromMe`) y solo en el chat "Mensaje a mí mismo" (`@s.whatsapp.net` o `@lid`); ignora el resto. Es una política única en `bot/access.js` que aplica a **todos** los comandos |
 | Arquitectura | Screaming architecture: carpetas por funcionalidad (`commands/img`, `commands/help`), un router común y WhatsApp aislado en `whatsapp/` |
@@ -38,6 +39,7 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 - `!ytcookies` como texto de un **documento** (el registro de `chrome://net-export` grabado con "Include cookies and credentials" mientras se usa `m.youtube.com` con sesión iniciada) → extrae solo las cookies de `youtube.com`, verifica que haya sesión y las guarda en `AUTH_DIR/youtube-cookies.txt` (permisos 600). Responde `Listo: guardé tu sesión de YouTube (N cookies). Ahora borra el mensaje con el archivo "para todos".` o explica qué faltó. Máx. 150 MB.
 - `!video gatos` → responde `Descargando "<título> (m:ss)"...`, busca en Dailymotion el primer video de hasta 20 min, lo descarga (la mejor calidad hasta 720p que pese menos de ~90 MB) y lo envía como video con el título de caption. Si falla, responde `No pude descargar "<título>"`; sin resultados, `No encontré videos para "<texto>"`. El archivo temporal se borra siempre.
 - `!twitter` (o `!x`) → envía los 10 tweets más recientes del feed "Para ti" que todavía no se hayan enviado, uno por mensaje: `🔁 @quien retuiteó` (si es retweet), `*Nombre* (@usuario) · ↩️ respuesta a @otro` (si es respuesta), el texto y el link. Si tiene fotos, la primera lleva el texto y las demás van solas. Excluye publicidad; incluye retweets y respuestas. Si en la primera página no hay 10 nuevos, sigue leyendo hasta 5 páginas. Un tweet se marca como enviado recién después de enviarlo. Sin configurar → `!twitter todavía no está configurado: faltan X_USERNAME, X_PASSWORD y X_EMAIL.`; si X falla → `No pude leer tu feed de X...`; sin nuevos → `No hay tweets nuevos en tu feed.`
+- `!noticias [1-5] [sección] <tema>` (o `!news`) → noticias de la última semana, una por mensaje, solo texto: `📰 *Título*`, `Medio · 27 sep`, resumen (si la nota lo publica) y link real. Secciones opcionales: tech, ciencia, negocios, deportes, mundo, salud, entretenimiento (también en inglés): con tema, acotan la búsqueda a esa área (Google busca la palabra, no el tema); sin tema, traen los titulares de la sección. Por defecto 1 noticia, máximo 5. No repite noticias enviadas (IDs en `AUTH_DIR/news-seen.json`, máx. 2000). Avisa si encontró menos de las pedidas, si no hay nuevas o si Google News falla.
 - `!help` o `!ayuda` → lista los comandos disponibles con su uso (se genera solo a partir del registro).
 - Si un comando falla inesperadamente → responde `Hubo un error con !<comando>` y el bot sigue funcionando.
 - Varios comandos seguidos → se atienden de a uno, en orden, sin mezclar respuestas.
@@ -69,6 +71,7 @@ whatsapp-bot/
     │   ├── ytcookies/        # !ytcookies: importa la sesión de YouTube
     │   ├── video/            # !video: descarga y envía un video
     │   ├── twitter/          # !twitter / !x: feed "Para ti" de X
+    │   ├── news/             # !noticias / !news: noticias con resumen
     │   └── help/             # !help: help.command.js, help.test.js
     ├── bot/                  # motor común a todos los comandos
     │   ├── router.js         # "!nombre args" → comando; anti-bucle, historial, errores, orden
@@ -82,11 +85,14 @@ whatsapp-bot/
     │   └── ytdlp.js          # descarga con yt-dlp en modo video (H.264 ≤ 720p) o audio (m4a), en partes de 5 min (máx. 6)
     ├── video-search/
     │   └── dailymotion.js    # búsqueda y descarga HLS de Dailymotion → MP4 con ffmpeg
+    ├── news/
+    │   └── google-news.js    # RSS de Google News, decodificación de links y resumen de la nota
+    ├── shared/
+    │   └── seen-store.js     # IDs ya enviados (tweets, noticias), para no repetir
     ├── x-feed/               # todo lo de X, para ajustarlo en un solo lugar
     │   ├── x.js              # sesión, páginas, filtros, memoria de enviados, fotos
     │   ├── home-timeline.js  # consulta HomeTimeline (queryId/features auto-actualizados) y lectura de la respuesta
     │   ├── session.js        # inicio de sesión (librería @the-convocation/twitter-scraper) y sesión guardada
-    │   └── seen-store.js     # IDs de tweets ya enviados
     └── whatsapp/             # todo lo de Baileys queda acá
         ├── connection.js     # sesión, pairing code, reconexión
         └── incoming.js       # mensaje de Baileys → { id, chatId, fromMe, isSelfChat, text, timestamp, attachment }
@@ -130,6 +136,7 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 - Los servicios que descargan archivos solo aceptan sus propios dominios por HTTPS (ej. `video-search/dailymotion.js`: `dailymotion.com` y `dmcdn.net`), y los archivos temporales se borran siempre después de enviarlos.
 - **X:** la contraseña solo se usa para el primer inicio de sesión y nunca se escribe en disco ni en los registros. Se guarda únicamente la sesión (`auth_token` y `ct0`) en `AUTH_DIR/x-session.json` con permisos 600, junto con `x-seen.json` (IDs enviados, máx. 5000). La consulta del feed se actualiza desde un listado público (`fa0311/TwitterInternalAPIDocument`) solo si pasa una validación estricta (queryId simple y features booleanos); si no, se usa la de respaldo. Las fotos solo se bajan de `pbs.twimg.com` por HTTPS.
 - **YouTube:** las cookies del registro de Chrome se filtran a solo `youtube.com` (el resto del registro se descarta en memoria) y se guardan con permisos 600 en `AUTH_DIR`. El archivo recibido nunca se escribe en disco. yt-dlp solo recibe links `https://www.youtube.com/watch?v=<id>` validados, después de `--`.
+- **Noticias:** solo se abren notas públicas por HTTPS (sin IPs, `localhost` ni dominios internos), leyendo como máximo 2 MB de cada una, y solo para sacar la descripción.
 - Los programas externos (ffmpeg, yt-dlp) se ejecutan con una lista de argumentos, nunca a través de una shell.
 - `config.js` es el único que lee la configuración, salvo `proxy.js` con las variables estándar de proxy. El número de teléfono y la sesión nunca se commitean.
 
@@ -158,6 +165,7 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 - `external-content.duckduckgo.com`: descarga de imágenes
 - `www.youtube.com`, `i.ytimg.com`: búsqueda y miniatura para `!youtube`
 - `api.dailymotion.com`, `www.dailymotion.com`, `cdndirector.dailymotion.com`, `*.dmcdn.net`: búsqueda y descarga para `!video`
+- `news.google.com` y los sitios de cada nota (solo HTTPS público): `!noticias`
 - `x.com`, `api.x.com`, `pbs.twimg.com`, `raw.githubusercontent.com`: inicio de sesión, feed y fotos para `!twitter`, y actualización de la consulta del feed
 
 ## Plan de desarrollo
@@ -176,6 +184,7 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 12. **`!youtube` (link con vista previa) y `!video` (descarga desde Dailymotion).**
 13. **`!twitter`:** implementado y testeado sin red; falta la prueba real con una cuenta.
 15. **Tokens PO (probado, no activado):** se probó `bgutil-ytdlp-pot-provider` 2.0.0 como servicio aislado (`scripts/pot-service/`: usuario de sistema `potsvc` sin acceso a `auth/` ni a `/root`, archivos de solo lectura, entorno vacío, sin nuevos privilegios, solo en `127.0.0.1`, salida por `youtube-download/allowlist-proxy.js`). El aislamiento se verificó incluso con el módulo nativo `canvas` cargado, y no hubo conexiones fuera de YouTube/Google. Los tokens se generan, pero YouTube igual responde 403 en videos con licencia desde la IP de este servidor, así que no se activó y se desinstaló. Los scripts quedan para reintentar en otro host (`install.sh`, `run.sh`, `uninstall.sh`).
+18. **`!noticias`:** Google News (inglés, última semana, relevancia), secciones que acotan la búsqueda, resumen de la nota y sin repetir. Probado en vivo: `tech rust` trajo 3 notas de InfoQ, SecurityWeek y The Register con resumen en 5 s.
 17. **`!audio`:** el mismo comando que `!youtube` en modo audio (m4a), con las mismas partes de 5 minutos (máx. 6). Probado en vivo: 3 partes de 5:00 y 4,9 MB cada una en 12 s. Se corrigió además que `--ffmpeg-location ffmpeg` (sin ruta) impedía unir audio y video.
 16. **YouTube en partes:** `!youtube [1-6]` envía hasta 6 partes de 5 minutos (máx. 30 min). Videos de hasta 90 min se bajan enteros y se recortan localmente con ffmpeg (1 h ≈ 46 s); más largos, se baja solo el tramo pedido (mucho más lento, pero sin ocupar tanto disco). Probado en vivo: 6:09 en 2 partes y 15 min de un video de 1 h en 3 partes de ~35 MB.
 14. **Descarga de YouTube:** `!ytcookies` importa la sesión desde `chrome://net-export` (sin instalar apps) y `!youtube` descarga con yt-dlp. Probado en vivo: un video de 6 min en 720p H.264 (47 MB) en 9 s.

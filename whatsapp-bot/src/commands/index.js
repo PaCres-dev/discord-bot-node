@@ -5,9 +5,10 @@ import { createYoutubeCommand } from './youtube/youtube.command.js';
 import { createVideoCommand } from './video/video.command.js';
 import { createTwitterCommand } from './twitter/twitter.command.js';
 import { createYtcookiesCommand } from './ytcookies/ytcookies.command.js';
+import { createNewsCommand } from './news/news.command.js';
 import { helpCommand } from './help/help.command.js';
 
-export function createCommands({ imageSearch, youtubeSearch, youtubeDownloader, videoSearch, xFeed, youtubeCookies }) {
+export function createCommands({ imageSearch, youtubeSearch, youtubeDownloader, videoSearch, xFeed, youtubeCookies, news }) {
   return [
     createImgCommand({ getImages: imageSearch.getRandomImages }),
     createYoutubeCommand({ findFirstVideo: youtubeSearch.findFirstVideo, downloader: youtubeDownloader }),
@@ -19,6 +20,7 @@ export function createCommands({ imageSearch, youtubeSearch, youtubeDownloader, 
     }),
     createTwitterCommand({ feed: xFeed }),
     createYtcookiesCommand(youtubeCookies),
+    createNewsCommand(news),
     helpCommand,
   ];
 }

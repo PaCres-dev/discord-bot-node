@@ -11,6 +11,7 @@ import { createTransactionIdGenerator, createXFeed } from './x-feed/x.js';
 import { join } from 'node:path';
 import * as cookies from './youtube-download/cookies.js';
 import * as ytdlp from './youtube-download/ytdlp.js';
+import { SECTIONS, createNewsFeed, resolveSection } from './news/google-news.js';
 import { startWhatsApp } from './whatsapp/connection.js';
 
 const config = loadConfig();
@@ -53,6 +54,11 @@ const router = createRouter({
       transactionId: createTransactionIdGenerator(),
       logger,
     }),
+    news: {
+      feed: createNewsFeed({ authDir: config.authDir, logger }),
+      sections: SECTIONS,
+      resolveSection,
+    },
     youtubeCookies: {
       extractYoutubeCookies: cookies.extractYoutubeCookies,
       toNetscape: (c) => cookies.toNetscape(c),

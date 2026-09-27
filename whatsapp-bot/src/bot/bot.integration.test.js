@@ -60,6 +60,15 @@ const fakeXFeed = {
 // Sin sesión de YouTube guardada: !youtube manda el link (la descarga se prueba en youtube.test.js).
 const fakeDownloader = { isConfigured: async () => false, download: async () => null, parseDuration: () => 0, countParts: () => 1, partMinutes: 5, maxParts: 6 };
 
+const fakeNews = {
+  feed: {
+    getNews: async ({ count }) => Array.from({ length: count }, (_, i) => ({ id: `n${i}`, title: `Noticia ${i}`, source: 'Medio', date: null, summary: 'Resumen', url: `https://medio.com/${i}` })),
+    markSent: async () => {},
+  },
+  sections: { tech: {} },
+  resolveSection: (w) => (w === 'tech' ? 'tech' : null),
+};
+
 const savedCookies = [];
 const fakeCookies = {
   extractYoutubeCookies: (text) => new Map([['SAPISID', text]]),
@@ -73,7 +82,7 @@ function setup(opts) {
   const imageSearch = fakeImages(opts);
   const videoSearch = fakeVideos();
   const router = createRouter({
-    commands: createCommands({ imageSearch, youtubeSearch: fakeYoutube, youtubeDownloader: fakeDownloader, videoSearch, xFeed: fakeXFeed, youtubeCookies: fakeCookies }),
+    commands: createCommands({ imageSearch, youtubeSearch: fakeYoutube, youtubeDownloader: fakeDownloader, videoSearch, xFeed: fakeXFeed, youtubeCookies: fakeCookies, news: fakeNews }),
     prefix: '!',
     logger: silent,
     startedAt: 1000,
@@ -163,6 +172,7 @@ describe('bot de punta a punta', () => {
       assert.match(content.text, /!video <búsqueda>/);
       assert.match(content.text, /!twitter/);
       assert.match(content.text, /!audio \[1-6\] <búsqueda>/);
+      assert.match(content.text, /!noticias \[1-5\] \[sección\] <tema>/);
     }
   });
 
@@ -249,9 +259,20 @@ describe('bot de punta a punta', () => {
     assert.equal(sent.length, 0);
   });
 
+  test('!noticias y !news envían noticias como texto', async () => {
+    const { receive, sent } = setup();
+    await receive(msg('!noticias 2 tech rust', { id: 'A' }));
+    await receive(msg('!News rust', { id: 'B' }));
+    assert.deepEqual(sent.map((s) => s.content.text), [
+      '📰 *Noticia 0*\nMedio\nResumen\nhttps://medio.com/0',
+      '📰 *Noticia 1*\nMedio\nResumen\nhttps://medio.com/1',
+      '📰 *Noticia 0*\nMedio\nResumen\nhttps://medio.com/0',
+    ]);
+  });
+
   test('ignora mensajes de otras personas', async () => {
     const { receive, sent, calls } = setup();
-    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato', '!twitter', '!audio gato']) {
+    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato', '!twitter', '!audio gato', '!noticias rust']) {
       await receive(msg(text, { jid: OTHER, fromMe: false }));
       await receive(msg(text, { jid: SELF_LID, fromMe: false }));
       await receive(msg(text, { jid: GROUP, fromMe: false }));
@@ -262,7 +283,7 @@ describe('bot de punta a punta', () => {
 
   test('ignora mis mensajes en otros chats y grupos', async () => {
     const { receive, sent, calls } = setup();
-    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato', '!twitter', '!audio gato']) {
+    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato', '!twitter', '!audio gato', '!noticias rust']) {
       await receive(msg(text, { jid: OTHER }));
       await receive(msg(text, { jid: GROUP }));
     }

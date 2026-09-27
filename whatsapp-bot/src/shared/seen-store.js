@@ -1,4 +1,4 @@
-// Recuerda los IDs de tweets ya enviados (en AUTH_DIR), para no repetirlos entre reinicios.
+// Recuerda los IDs ya enviados (tweets, noticias) en AUTH_DIR, para no repetirlos entre reinicios.
 import { readFile, writeFile } from 'node:fs/promises';
 
 export const MAX_SEEN = 5000;

@@ -3,7 +3,7 @@
 import { join } from 'node:path';
 import { buildHomeTimelineUrl, createOperationProvider, parseTimeline, WEB_BEARER } from './home-timeline.js';
 import { deleteSession, loadSession, loginWithPassword, saveSession } from './session.js';
-import { createSeenStore } from './seen-store.js';
+import { createSeenStore } from '../shared/seen-store.js';
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36';

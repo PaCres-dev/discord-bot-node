@@ -9,6 +9,7 @@ const commands = createCommands({
   youtubeDownloader: { isConfigured: async () => false, download: async () => null, parseDuration: () => 0, countParts: () => 1, partMinutes: 5, maxParts: 6 },
   videoSearch: { searchVideos: async () => [], downloadVideo: async () => null, MAX_MINUTES: 20 },
   xFeed: { isConfigured: async () => false, getNewTweets: async () => [], markSent: async () => {}, downloadPhoto: async () => null },
+  news: { feed: { getNews: async () => [], markSent: async () => {} }, sections: { tech: {} }, resolveSection: () => null },
   youtubeCookies: { extractYoutubeCookies: () => new Map(), toNetscape: () => '', saveCookies: async () => {}, maxBytes: 1 },
 });
 
