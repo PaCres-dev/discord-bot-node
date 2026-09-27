@@ -2,6 +2,7 @@
 // Cada comando: { name, aliases?, description, usage, run(ctx) }.
 import { createImgCommand } from './img/img.command.js';
 import { createYoutubeCommand } from './youtube/youtube.command.js';
+import { createAudioCommand } from './audio/audio.command.js';
 import { createVideoCommand } from './video/video.command.js';
 import { createTwitterCommand } from './twitter/twitter.command.js';
 import { createYtcookiesCommand } from './ytcookies/ytcookies.command.js';
@@ -11,6 +12,7 @@ export function createCommands({ imageSearch, youtubeSearch, youtubeDownloader, 
   return [
     createImgCommand({ getImages: imageSearch.getRandomImages }),
     createYoutubeCommand({ findFirstVideo: youtubeSearch.findFirstVideo, downloader: youtubeDownloader }),
+    createAudioCommand({ findFirstVideo: youtubeSearch.findFirstVideo, downloader: youtubeDownloader }),
     createVideoCommand({
       searchVideos: videoSearch.searchVideos,
       downloadVideo: videoSearch.downloadVideo,

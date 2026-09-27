@@ -5,6 +5,7 @@ Bot mínimo vinculado a tu WhatsApp personal. En el chat "Mensaje a mí mismo":
 - `!img gato` → una imagen al azar del top 10 de DuckDuckGo.
 - `!img 3 gato` → 3 imágenes distintas (máximo 5).
 - `!youtube gatos` (o `!yt`) → el primer video de YouTube descargado, en partes de 5 minutos: `!youtube gatos` manda la primera parte y `!youtube 3 gatos` hasta 3 (máximo 6 = 30 minutos). Sin sesión de YouTube guardada, o si no se puede bajar, te manda el link con vista previa.
+- `!audio podcast` (o `!yta`) → solo el audio del primer video de YouTube (hasta 2 horas, en partes de 1 hora). Ideal para podcasts: pesa ~1 MB por minuto.
 - `!ytcookies` → como texto de un documento: guarda tu sesión de YouTube (ver abajo).
 - `!video gatos` → descarga el primer video de Dailymotion (hasta 20 min, 720p) y te lo envía.
 - `!twitter` (o `!x`) → 10 tweets nuevos de tu feed "Para ti" de X (necesita configurar la cuenta, ver abajo).

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { MAX_BYTES, assertYoutubeUrl, buildArgs, buildSplitArgs, downloadYoutube, parseDuration } from './ytdlp.js';
+import { MAX_BYTES, MODES, assertYoutubeUrl, buildArgs, buildSplitArgs, countParts, downloadYoutube, parseDuration } from './ytdlp.js';
 
 const URL_OK = 'https://www.youtube.com/watch?v=jNQXAC9IVRw';
 
@@ -136,5 +136,47 @@ describe('downloadYoutube', () => {
       /no válido/,
     );
     assert.equal(ran, false);
+  });
+});
+
+describe('modo audio', () => {
+  const base = { cookiesFile: '/c.txt', ytdlpPath: '/bin/yt-dlp', ffmpegPath: '/bin/ffmpeg', mode: MODES.audio };
+
+  test('pide solo audio m4a y parte cada 1 hora, máximo 2 partes', () => {
+    const args = buildArgs({ url: URL_OK, cookiesFile: '/c', ffmpegPath: 'ffmpeg', output: 'o', mode: MODES.audio });
+    assert.equal(args[args.indexOf('-f') + 1], 'ba[ext=m4a]/ba');
+    assert.ok(args.includes('-x'));
+    assert.equal(args[args.indexOf('--audio-format') + 1], 'm4a');
+    assert.ok(!args.includes('--merge-output-format'));
+    assert.equal(countParts(45 * 60, 2, MODES.audio), 1);
+    assert.equal(countParts(90 * 60, 2, MODES.audio), 2);
+    assert.equal(countParts(5 * 60 * 60, 2, MODES.audio), 2);
+    const split = buildSplitArgs('/tmp/a.m4a', '/tmp/parte-%02d.m4a', 7200, MODES.audio);
+    assert.equal(split[split.indexOf('-segment_time') + 1], '3600');
+  });
+
+  test('audio corto: un solo archivo m4a', async () => {
+    const calls = [];
+    const runProcess = async (cmd, args) => {
+      calls.push(cmd);
+      await writeFile(args[args.indexOf('-o') + 1].replace('%(ext)s', 'm4a'), Buffer.alloc(100_000));
+    };
+    const result = await downloadYoutube(URL_OK, { ...base, durationSeconds: 45 * 60, parts: 2, runProcess });
+    assert.deepEqual(calls, ['/bin/yt-dlp']);
+    assert.ok(result.files[0].endsWith('/video.m4a'));
+    await result.cleanup();
+  });
+
+  test('audio de 3 horas: baja solo las primeras 2 y las divide en 2 partes', async () => {
+    const calls = [];
+    const runProcess = async (cmd, args) => {
+      calls.push({ cmd, args });
+      if (cmd.endsWith('yt-dlp')) await writeFile(args[args.indexOf('-o') + 1].replace('%(ext)s', 'm4a'), Buffer.alloc(100_000));
+      else for (const i of [0, 1]) await writeFile(args.at(-1).replace('%02d', `0${i}`), Buffer.alloc(100_000));
+    };
+    const result = await downloadYoutube(URL_OK, { ...base, durationSeconds: 3 * 60 * 60, parts: 2, runProcess });
+    assert.equal(calls[0].args[calls[0].args.indexOf('--download-sections') + 1], '*0-7200');
+    assert.deepEqual(result.files.map((f) => f.split('/').pop()), ['parte-00.m4a', 'parte-01.m4a']);
+    await result.cleanup();
   });
 });

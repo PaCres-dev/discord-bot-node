@@ -18,7 +18,7 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 | Descarga | A través del proxy de imágenes de DuckDuckGo (`external-content.duckduckgo.com`), así no hay que acceder a dominios arbitrarios |
 | SafeSearch | Desactivado |
 | Selección | Una imagen al azar del top 10; si falla la descarga, se prueba otra (máx. 5 intentos) |
-| Comandos | `!img [1-5] <texto>`, `!youtube` / `!yt <texto>`, `!ytcookies` (documento), `!video <texto>`, `!twitter` / `!x` y `!help` / `!ayuda` |
+| Comandos | `!img [1-5] <texto>`, `!youtube` / `!yt <texto>`, `!audio` / `!yta <texto>`, `!ytcookies` (documento), `!video <texto>`, `!twitter` / `!x` y `!help` / `!ayuda` |
 | YouTube | Con la sesión de YouTube del dueño (cookies importadas con `!ytcookies` desde un registro de `chrome://net-export`), `!youtube [1-6]` descarga el video con yt-dlp (H.264, hasta 720p) y lo envía en partes de 5 minutos: por defecto 1, como máximo 6 (los primeros 30 minutos). Sin sesión, o si falla, envía el link con vista previa. Sin cookies YouTube bloquea las descargas desde servidores (probado: yt-dlp, clientes alternativos, tokens PO, Invidious, Piped, cobalt, ssyoutube, loader.to). La API oficial no permite descargar |
 | X (Twitter) | `!twitter` lee el feed "Para ti" iniciando sesión como el usuario (la API oficial no da ese feed y es paga). **Estado: implementado pero sin probar en vivo**, porque todavía no hay una cuenta para usar. Se activa con `X_USERNAME`, `X_PASSWORD` y `X_EMAIL`; sin ellas responde que no está configurado |
 | Videos | `!video` busca y descarga de Dailymotion (sin API key): hasta 20 min, hasta 720p y ~90 MB. ffmpeg une los fragmentos localmente |
@@ -34,6 +34,7 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 - `!img 3 perro salchicha` → envía 3 imágenes distintas del top 10. Un número mayor a 5 se limita a 5. Si solo consigue algunas, avisa `Solo encontré X de N`.
 - `!img` sin texto → responde `Uso: !img [1-5] <búsqueda>`.
 - `!youtube gatos` (o `!yt`, `!YouTube`) → busca en YouTube. Con sesión de YouTube guardada: responde `Descargando "<título>" (m:ss)...` y envía el video. Si dura más de 5 minutos, se envía en partes de 5 minutos numeradas (`<título> (parte 1/3)`; la primera lleva el link): `!youtube gatos` = 1 parte (los primeros 5 minutos), `!youtube 3 gatos` = hasta 3 partes, máximo 6 (los primeros 30 minutos). Si se piden más partes de las que tiene, avisa `El video solo tiene N partes.`; si pasa de 30 minutos, avisa `Solo se envían los primeros 30 minutos (6 partes).`. Sin sesión, envía el link con vista previa (título, canal · duración y miniatura). En vivo: link + aviso. Si la descarga falla: link + `No pude descargar el video, te dejo el link.` Los archivos temporales se borran siempre.
+- `!audio gatos` (o `!yta`) → busca en YouTube y envía solo el audio (m4a/AAC, ~1 MB por minuto), que se reproduce en WhatsApp. Primero un mensaje `🎧 *<título>* (duración)` con el link (los audios no llevan texto) y después el audio. Completo hasta 2 horas, en partes de 1 hora; si dura más, envía las primeras 2 horas y lo avisa. Sin sesión de YouTube: link + cómo activarla con `!ytcookies`. En vivo o si falla: link con aviso.
 - `!ytcookies` como texto de un **documento** (el registro de `chrome://net-export` grabado con "Include cookies and credentials" mientras se usa `m.youtube.com` con sesión iniciada) → extrae solo las cookies de `youtube.com`, verifica que haya sesión y las guarda en `AUTH_DIR/youtube-cookies.txt` (permisos 600). Responde `Listo: guardé tu sesión de YouTube (N cookies). Ahora borra el mensaje con el archivo "para todos".` o explica qué faltó. Máx. 150 MB.
 - `!video gatos` → responde `Descargando "<título> (m:ss)"...`, busca en Dailymotion el primer video de hasta 20 min, lo descarga (la mejor calidad hasta 720p que pese menos de ~90 MB) y lo envía como video con el título de caption. Si falla, responde `No pude descargar "<título>"`; sin resultados, `No encontré videos para "<texto>"`. El archivo temporal se borra siempre.
 - `!twitter` (o `!x`) → envía los 10 tweets más recientes del feed "Para ti" que todavía no se hayan enviado, uno por mensaje: `🔁 @quien retuiteó` (si es retweet), `*Nombre* (@usuario) · ↩️ respuesta a @otro` (si es respuesta), el texto y el link. Si tiene fotos, la primera lleva el texto y las demás van solas. Excluye publicidad; incluye retweets y respuestas. Si en la primera página no hay 10 nuevos, sigue leyendo hasta 5 páginas. Un tweet se marca como enviado recién después de enviarlo. Sin configurar → `!twitter todavía no está configurado: faltan X_USERNAME, X_PASSWORD y X_EMAIL.`; si X falla → `No pude leer tu feed de X...`; sin nuevos → `No hay tweets nuevos en tu feed.`
@@ -65,6 +66,7 @@ whatsapp-bot/
     │   ├── index.js          # registro: la lista de comandos
     │   ├── img/              # !img: img.command.js, parse-args.js, img.test.js
     │   ├── youtube/          # !youtube / !yt: descarga el video (o link con vista previa)
+    │   ├── audio/            # !audio / !yta: solo el audio de YouTube
     │   ├── ytcookies/        # !ytcookies: importa la sesión de YouTube
     │   ├── video/            # !video: descarga y envía un video
     │   ├── twitter/          # !twitter / !x: feed "Para ti" de X
@@ -78,7 +80,7 @@ whatsapp-bot/
     │   └── youtube.js        # búsqueda en YouTube (sin API key) y miniatura
     ├── youtube-download/
     │   ├── cookies.js        # cookies de YouTube desde chrome://net-export → cookies.txt
-    │   └── ytdlp.js          # descarga con yt-dlp (H.264 ≤ 720p) y división en partes de 5 min (máx. 6)
+    │   └── ytdlp.js          # descarga con yt-dlp: video (H.264 ≤ 720p, partes de 5 min, máx. 6) o audio (m4a, partes de 1 h, máx. 2)
     ├── video-search/
     │   └── dailymotion.js    # búsqueda y descarga HLS de Dailymotion → MP4 con ffmpeg
     ├── x-feed/               # todo lo de X, para ajustarlo en un solo lugar
@@ -99,7 +101,7 @@ Un mensaje recorre siempre el mismo camino:
 
 1. `whatsapp/connection.js` recibe el mensaje de Baileys y `whatsapp/incoming.js` lo convierte en un objeto simple.
 2. `bot/router.js` descarta, en este orden: mensajes enviados por el propio bot, historial viejo y todo lo que `bot/access.js` no permita. Recién después busca el comando.
-3. El comando recibe un `ctx` (con `ctx.args` y, si el mensaje era un documento, `ctx.attachment` con `download()`) y responde con `ctx.reply.text(texto)`, `ctx.reply.image(buffer, caption)`, `ctx.reply.video(archivoMp4, caption)` o `ctx.reply.link({ url, title, description, thumbnail })`. No conoce WhatsApp.
+3. El comando recibe un `ctx` (que también ofrece `ctx.reply.audio(archivo)`) (con `ctx.args` y, si el mensaje era un documento, `ctx.attachment` con `download()`) y responde con `ctx.reply.text(texto)`, `ctx.reply.image(buffer, caption)`, `ctx.reply.video(archivoMp4, caption)` o `ctx.reply.link({ url, title, description, thumbnail })`. No conoce WhatsApp.
 
 ### Contrato de un comando
 
@@ -175,6 +177,7 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 12. **`!youtube` (link con vista previa) y `!video` (descarga desde Dailymotion).**
 13. **`!twitter`:** implementado y testeado sin red; falta la prueba real con una cuenta.
 15. **Tokens PO (probado, no activado):** se probó `bgutil-ytdlp-pot-provider` 2.0.0 como servicio aislado (`scripts/pot-service/`: usuario de sistema `potsvc` sin acceso a `auth/` ni a `/root`, archivos de solo lectura, entorno vacío, sin nuevos privilegios, solo en `127.0.0.1`, salida por `youtube-download/allowlist-proxy.js`). El aislamiento se verificó incluso con el módulo nativo `canvas` cargado, y no hubo conexiones fuera de YouTube/Google. Los tokens se generan, pero YouTube igual responde 403 en videos con licencia desde la IP de este servidor, así que no se activó y se desinstaló. Los scripts quedan para reintentar en otro host (`install.sh`, `run.sh`, `uninstall.sh`).
+17. **`!audio`:** solo el audio de YouTube, hasta 2 h en partes de 1 h. Probado en vivo: 1:02:28 → 58 MB + 2,4 MB en 16 s. Se corrigió además que `--ffmpeg-location ffmpeg` (sin ruta) impedía unir audio y video.
 16. **YouTube en partes:** `!youtube [1-6]` envía hasta 6 partes de 5 minutos (máx. 30 min). Videos de hasta 90 min se bajan enteros y se recortan localmente con ffmpeg (1 h ≈ 46 s); más largos, se baja solo el tramo pedido (mucho más lento, pero sin ocupar tanto disco). Probado en vivo: 6:09 en 2 partes y 15 min de un video de 1 h en 3 partes de ~35 MB.
 14. **Descarga de YouTube:** `!ytcookies` importa la sesión desde `chrome://net-export` (sin instalar apps) y `!youtube` descarga con yt-dlp. Probado en vivo: un video de 6 min en 720p H.264 (47 MB) en 9 s.
 

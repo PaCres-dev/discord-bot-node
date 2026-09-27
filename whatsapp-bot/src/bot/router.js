@@ -58,6 +58,8 @@ export function createRouter({ commands, prefix, logger = console, startedAt = 0
         image: (buffer, caption) => track({ image: buffer, caption }),
         // Video desde un archivo local (MP4).
         video: (file, caption) => track({ video: { url: file }, caption, mimetype: 'video/mp4' }),
+        // Audio desde un archivo local (m4a); se reproduce dentro de WhatsApp.
+        audio: (file) => track({ audio: { url: file }, mimetype: 'audio/mp4' }),
         // Link con vista previa (título, descripción y miniatura).
         link: ({ url, title, description, thumbnail }) =>
           track({

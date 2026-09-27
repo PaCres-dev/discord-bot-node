@@ -58,7 +58,7 @@ const fakeXFeed = {
 };
 
 // Sin sesión de YouTube guardada: !youtube manda el link (la descarga se prueba en youtube.test.js).
-const fakeDownloader = { isConfigured: async () => false, download: async () => null, parseDuration: () => 0, countParts: () => 1, partMinutes: 5, maxParts: 6 };
+const fakeDownloader = { isConfigured: async () => false, download: async () => null, parseDuration: () => 0, countParts: () => 1, partMinutes: 5, maxParts: 6, downloadAudio: async () => null, audioPartMinutes: 60, audioMaxParts: 2 };
 
 const savedCookies = [];
 const fakeCookies = {
@@ -162,6 +162,7 @@ describe('bot de punta a punta', () => {
       assert.match(content.text, /!youtube \[1-6\] <búsqueda>/);
       assert.match(content.text, /!video <búsqueda>/);
       assert.match(content.text, /!twitter/);
+      assert.match(content.text, /!audio <búsqueda>/);
     }
   });
 
@@ -250,7 +251,7 @@ describe('bot de punta a punta', () => {
 
   test('ignora mensajes de otras personas', async () => {
     const { receive, sent, calls } = setup();
-    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato', '!twitter']) {
+    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato', '!twitter', '!audio gato']) {
       await receive(msg(text, { jid: OTHER, fromMe: false }));
       await receive(msg(text, { jid: SELF_LID, fromMe: false }));
       await receive(msg(text, { jid: GROUP, fromMe: false }));
@@ -261,7 +262,7 @@ describe('bot de punta a punta', () => {
 
   test('ignora mis mensajes en otros chats y grupos', async () => {
     const { receive, sent, calls } = setup();
-    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato', '!twitter']) {
+    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato', '!twitter', '!audio gato']) {
       await receive(msg(text, { jid: OTHER }));
       await receive(msg(text, { jid: GROUP }));
     }

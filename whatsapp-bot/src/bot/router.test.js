@@ -135,6 +135,7 @@ describe('createRouter', () => {
       commands: [
         command('media', async (ctx) => {
           await ctx.reply.video('/tmp/v.mp4', 'Clip');
+          await ctx.reply.audio('/tmp/a.m4a');
           await ctx.reply.link({ url: 'https://youtu.be/x', title: 'T', description: 'D', thumbnail: Buffer.from('j') });
           await ctx.reply.link({ url: 'https://youtu.be/y', title: 'T2', description: 'D2', thumbnail: null });
         }),
@@ -145,6 +146,7 @@ describe('createRouter', () => {
     const { sent, send } = collector();
     await router.handle(incoming('!media'), send);
     assert.deepEqual(sent[0], { video: { url: '/tmp/v.mp4' }, caption: 'Clip', mimetype: 'video/mp4' });
+    assert.deepEqual(sent.splice(1, 1)[0], { audio: { url: '/tmp/a.m4a' }, mimetype: 'audio/mp4' });
     assert.deepEqual(sent[1], {
       text: '*T*\nhttps://youtu.be/x',
       linkPreview: { 'canonical-url': 'https://youtu.be/x', 'matched-text': 'https://youtu.be/x', title: 'T', description: 'D', jpegThumbnail: Buffer.from('j') },
