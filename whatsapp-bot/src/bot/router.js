@@ -48,6 +48,8 @@ export function createRouter({ commands, prefix, logger = console, startedAt = 0
     };
     const ctx = {
       args: parsed.args,
+      // Documento adjunto al comando (ej. !ytcookies), o null.
+      attachment: incoming.attachment ?? null,
       prefix,
       logger,
       commands,

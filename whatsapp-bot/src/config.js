@@ -10,6 +10,7 @@ export function loadConfig(env = process.env) {
     authDir: env.AUTH_DIR || './auth',
     logLevel: env.LOG_LEVEL || 'warn',
     ffmpegPath: env.FFMPEG_PATH || 'ffmpeg',
+    ytdlpPath: env.YTDLP_PATH || 'yt-dlp',
     // Cuenta de X para !twitter. Solo se usa para el primer inicio de sesión; después
     // alcanza con la sesión guardada en authDir. Nunca se muestra en los registros.
     x: Object.freeze({

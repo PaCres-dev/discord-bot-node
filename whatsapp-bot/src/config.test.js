@@ -4,7 +4,7 @@ import { loadConfig } from './config.js';
 
 test('valores por defecto', () => {
   const { x, ...rest } = loadConfig({});
-  assert.deepEqual(rest, { phoneNumber: '', authDir: './auth', logLevel: 'warn', ffmpegPath: 'ffmpeg', prefix: '!' });
+  assert.deepEqual(rest, { phoneNumber: '', authDir: './auth', logLevel: 'warn', ffmpegPath: 'ffmpeg', ytdlpPath: 'yt-dlp', prefix: '!' });
   assert.deepEqual({ ...x }, { username: '', password: '', email: '' });
 });
 

@@ -8,9 +8,12 @@ import * as imageSearch from './image-search/duckduckgo.js';
 import * as youtubeSearch from './youtube-search/youtube.js';
 import * as dailymotion from './video-search/dailymotion.js';
 import { createTransactionIdGenerator, createXFeed } from './x-feed/x.js';
+import { join } from 'node:path';
+import * as cookies from './youtube-download/cookies.js';
 import { startWhatsApp } from './whatsapp/connection.js';
 
 const config = loadConfig();
+const youtubeCookiesFile = join(config.authDir, 'youtube-cookies.txt');
 const baileysLogger = pino({ level: config.logLevel });
 // Los comandos recibidos siempre se ven en consola, aunque LOG_LEVEL sea warn.
 const logger = {
@@ -33,6 +36,12 @@ const router = createRouter({
       transactionId: createTransactionIdGenerator(),
       logger,
     }),
+    youtubeCookies: {
+      extractYoutubeCookies: cookies.extractYoutubeCookies,
+      toNetscape: (c) => cookies.toNetscape(c),
+      saveCookies: (text) => cookies.saveCookiesFile(youtubeCookiesFile, text),
+      maxBytes: cookies.MAX_NETLOG_BYTES,
+    },
   }),
   prefix: config.prefix,
   logger,

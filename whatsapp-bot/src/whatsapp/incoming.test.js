@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { getText, isSelfChat, toIncoming } from './incoming.js';
+import { getAttachment, getText, isSelfChat, toIncoming } from './incoming.js';
 
 const ME = { id: '5491100000000:66@s.whatsapp.net', lid: '111111111111111:66@lid' };
 const SELF_PN = '5491100000000@s.whatsapp.net';
@@ -39,6 +39,7 @@ describe('toIncoming', () => {
       isSelfChat: true,
       text: '!img gato',
       timestamp: 123,
+      attachment: null,
     });
   });
   test('fromMe e isSelfChat son false salvo que se cumplan', () => {
@@ -50,5 +51,22 @@ describe('toIncoming', () => {
   test('mensajes sin contenido devuelven null', () => {
     assert.equal(toIncoming({ key: { remoteJid: SELF_LID, id: 'X' } }, ME), null);
     assert.equal(toIncoming(undefined, ME), null);
+  });
+});
+
+describe('documentos', () => {
+  test('lee el texto del documento y lo descarga solo si se pide', async () => {
+    let downloads = 0;
+    const raw = {
+      key: { remoteJid: SELF_LID, fromMe: true, id: 'D' },
+      messageTimestamp: 1,
+      message: { documentWithCaptionMessage: { message: { documentMessage: { caption: '!ytcookies', fileName: 'log.json', mimetype: 'application/json', fileLength: '42' } } } },
+    };
+    assert.equal(getText(raw.message), '!ytcookies');
+    const attachment = getAttachment(raw, async () => (downloads++, Buffer.from('x')));
+    assert.deepEqual({ ...attachment, download: undefined }, { fileName: 'log.json', mimetype: 'application/json', size: 42, download: undefined });
+    assert.equal(downloads, 0);
+    assert.equal((await attachment.download()).toString(), 'x');
+    assert.equal(getAttachment({ message: { conversation: 'hola' } }), null);
   });
 });

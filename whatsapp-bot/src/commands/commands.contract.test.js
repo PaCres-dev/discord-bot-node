@@ -8,6 +8,7 @@ const commands = createCommands({
   youtubeSearch: { findFirstVideo: async () => null },
   videoSearch: { searchVideos: async () => [], downloadVideo: async () => null, MAX_MINUTES: 20 },
   xFeed: { isConfigured: async () => false, getNewTweets: async () => [], markSent: async () => {}, downloadPhoto: async () => null },
+  youtubeCookies: { extractYoutubeCookies: () => new Map(), toNetscape: () => '', saveCookies: async () => {}, maxBytes: 1 },
 });
 
 test('hay al menos un comando registrado', () => {

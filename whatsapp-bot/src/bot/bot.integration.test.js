@@ -57,21 +57,30 @@ const fakeXFeed = {
   downloadPhoto: async () => Buffer.from('jpg'),
 };
 
+const savedCookies = [];
+const fakeCookies = {
+  extractYoutubeCookies: (text) => new Map([['SAPISID', text]]),
+  toNetscape: (c) => `cookies:${c.get('SAPISID')}`,
+  saveCookies: async (text) => savedCookies.push(text),
+  maxBytes: 1000,
+};
+
 // Arma el bot como main.js, pero con un WhatsApp falso que guarda lo que se envía.
 function setup(opts) {
   const imageSearch = fakeImages(opts);
   const videoSearch = fakeVideos();
   const router = createRouter({
-    commands: createCommands({ imageSearch, youtubeSearch: fakeYoutube, videoSearch, xFeed: fakeXFeed }),
+    commands: createCommands({ imageSearch, youtubeSearch: fakeYoutube, videoSearch, xFeed: fakeXFeed, youtubeCookies: fakeCookies }),
     prefix: '!',
     logger: silent,
     startedAt: 1000,
   });
   const sent = [];
   let n = 0;
-  const receive = (raw) => {
+  const receive = (raw, download) => {
     const incoming = toIncoming(raw, ME);
     if (!incoming) return;
+    if (incoming.attachment && download) incoming.attachment.download = download;
     return router.handle(incoming, async (content) => {
       sent.push({ jid: raw.key.remoteJid, content });
       return `BOT${n++}`;
@@ -206,6 +215,34 @@ describe('bot de punta a punta', () => {
       '*Ana* (@ana)\nHola\nhttps://x.com/ana/status/t1',
       '*Ana* (@ana)\nHola\nhttps://x.com/ana/status/t1',
     ]);
+  });
+
+  test('!ytcookies como texto de un documento guarda las cookies', async () => {
+    const { receive, sent } = setup();
+    savedCookies.length = 0;
+    const doc = {
+      key: { remoteJid: SELF_LID, fromMe: true, id: 'DOC1' },
+      messageTimestamp: 2000,
+      message: { documentWithCaptionMessage: { message: { documentMessage: { caption: '!ytcookies', fileName: 'chrome-net-export-log.json', fileLength: 10 } } } },
+    };
+    // La descarga real la hace Baileys; acá se reemplaza por una función falsa.
+    const incomingDownload = async () => Buffer.from('netlog');
+    await receive(doc, incomingDownload);
+    assert.deepEqual(savedCookies, ['cookies:netlog']);
+    assert.match(sent[0].content.text, /^Listo: guardé tu sesión de YouTube/);
+  });
+
+  test('!ytcookies de otra persona o en otro chat se ignora', async () => {
+    const { receive, sent } = setup();
+    savedCookies.length = 0;
+    for (const [jid, fromMe] of [[OTHER, false], [SELF_LID, false], [GROUP, true]]) {
+      await receive(
+        { key: { remoteJid: jid, fromMe, id: `D-${jid}` }, messageTimestamp: 2000, message: { documentMessage: { caption: '!ytcookies', fileLength: 10 } } },
+        async () => Buffer.from('netlog'),
+      );
+    }
+    assert.deepEqual(savedCookies, []);
+    assert.equal(sent.length, 0);
   });
 
   test('ignora mensajes de otras personas', async () => {
