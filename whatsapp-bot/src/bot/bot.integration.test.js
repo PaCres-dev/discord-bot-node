@@ -58,7 +58,7 @@ const fakeXFeed = {
 };
 
 // Sin sesión de YouTube guardada: !youtube manda el link (la descarga se prueba en youtube.test.js).
-const fakeDownloader = { isConfigured: async () => false, download: async () => null, parseDuration: () => 0, maxMinutes: 20 };
+const fakeDownloader = { isConfigured: async () => false, download: async () => null, parseDuration: () => 0, countParts: () => 1, partMinutes: 5, maxParts: 6 };
 
 const savedCookies = [];
 const fakeCookies = {
@@ -159,7 +159,7 @@ describe('bot de punta a punta', () => {
       assert.match(content.text, /^Comandos disponibles:/);
       assert.match(content.text, /!img \[1-5\] <búsqueda>/);
       assert.match(content.text, /!help/);
-      assert.match(content.text, /!youtube <búsqueda>/);
+      assert.match(content.text, /!youtube \[1-6\] <búsqueda>/);
       assert.match(content.text, /!video <búsqueda>/);
       assert.match(content.text, /!twitter/);
     }

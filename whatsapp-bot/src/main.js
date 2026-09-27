@@ -29,10 +29,18 @@ const router = createRouter({
     youtubeSearch,
     youtubeDownloader: {
       isConfigured: () => cookies.hasCookiesFile(youtubeCookiesFile),
-      download: (url) =>
-        ytdlp.downloadYoutube(url, { cookiesFile: youtubeCookiesFile, ytdlpPath: config.ytdlpPath, ffmpegPath: config.ffmpegPath }),
+      download: (url, { durationSeconds, parts }) =>
+        ytdlp.downloadYoutube(url, {
+          cookiesFile: youtubeCookiesFile,
+          durationSeconds,
+          parts,
+          ytdlpPath: config.ytdlpPath,
+          ffmpegPath: config.ffmpegPath,
+        }),
       parseDuration: ytdlp.parseDuration,
-      maxMinutes: ytdlp.MAX_MINUTES,
+      countParts: ytdlp.countParts,
+      partMinutes: ytdlp.PART_SECONDS / 60,
+      maxParts: ytdlp.MAX_PARTS,
     },
     videoSearch: {
       ...dailymotion,

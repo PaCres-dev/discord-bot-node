@@ -1,15 +1,23 @@
 // Descarga de videos de YouTube con yt-dlp, usando la sesión guardada con !ytcookies.
 // yt-dlp se ejecuta con una lista de argumentos (nunca a través de una shell).
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
-export const MAX_MINUTES = 20;
-export const MAX_BYTES = 90 * 1024 * 1024; // WhatsApp acepta videos de hasta ~100 MB
-// H.264 (el que WhatsApp reproduce en todos lados) hasta 720p y ~80 MB; si no, 480p; si no, el formato 18 (360p).
+// Videos largos se envían en partes de 5 minutos, como máximo 6 (los primeros 30 minutos).
+export const PART_SECONDS = 5 * 60;
+export const MAX_PARTS = 6;
+export const MAX_BYTES = 90 * 1024 * 1024; // WhatsApp acepta videos de hasta ~100 MB por mensaje
+// Hasta esta duración conviene bajar el video entero y recortarlo aquí (mucho más rápido:
+// 1 h tarda ~1 min). Más largos: se baja solo el tramo pedido, para no ocupar tanto disco.
+export const FULL_DOWNLOAD_MAX_SECONDS = 90 * 60;
+// Partes más cortas que esto (restos de un corte) se descartan.
+const MIN_PART_BYTES = 50 * 1024;
+// H.264 (el que WhatsApp reproduce en todos lados) hasta 720p y ~1,8 Mbps (5 min ≈ 70 MB);
+// si no, 480p; si no, el formato 18 (360p).
 export const FORMAT = [
-  'bv*[height<=720][vcodec^=avc1][filesize_approx<=80M]+ba[ext=m4a]',
+  'bv*[height<=720][vcodec^=avc1][tbr<=?1800]+ba[ext=m4a]',
   'bv*[height<=480][vcodec^=avc1]+ba[ext=m4a]',
   'b[height<=720][vcodec^=avc1]',
   '18',
@@ -45,19 +53,21 @@ function defaultRunProcess(command, args) {
     proc.on('error', (err) => (clearTimeout(timer), reject(err)));
     proc.on('close', (code) => {
       clearTimeout(timer);
-      code === 0 ? resolve() : reject(new YoutubeDownloadError(`yt-dlp falló: ${stderr.trim().split('\n').pop()}`));
+      code === 0 ? resolve() : reject(new YoutubeDownloadError(`${basename(command)} falló: ${stderr.trim().split('\n').pop()}`));
     });
   });
 }
 
-export function buildArgs({ url, cookiesFile, ffmpegPath, output }) {
+// seconds: cuántos segundos descargar desde el inicio (null = el video entero).
+export function buildArgs({ url, cookiesFile, ffmpegPath, output, seconds = null }) {
   return [
     '--cookies', cookiesFile,
     '--js-runtimes', 'node',
     '--ffmpeg-location', ffmpegPath,
     '--no-playlist',
     '--no-progress',
-    '--match-filter', `duration<=${MAX_MINUTES * 60}`,
+    '--match-filter', '!is_live',
+    ...(seconds ? ['--download-sections', `*0-${seconds}`] : []),
     '-f', FORMAT,
     '--merge-output-format', 'mp4',
     '-o', output,
@@ -65,18 +75,59 @@ export function buildArgs({ url, cookiesFile, ffmpegPath, output }) {
   ];
 }
 
-// Descarga el video como MP4 en una carpeta temporal. Devuelve { file, cleanup }.
-export async function downloadYoutube(url, { cookiesFile, ytdlpPath = 'yt-dlp', ffmpegPath = 'ffmpeg', runProcess = defaultRunProcess }) {
+// Cuántas partes de 5 minutos salen de un video, con el pedido y el máximo.
+export function countParts(durationSeconds, requested) {
+  const available = Math.max(1, Math.ceil(durationSeconds / PART_SECONDS));
+  return Math.min(available, Math.max(1, requested), MAX_PARTS);
+}
+
+// Divide el MP4 en partes de 5 minutos sin volver a codificar (los cortes caen en el cuadro clave
+// más cercano). Con `limitSeconds`, usa solo ese tramo inicial.
+export function buildSplitArgs(input, outputPattern, limitSeconds = null) {
+  return [
+    '-hide_banner', '-loglevel', 'error', '-y',
+    '-i', input,
+    ...(limitSeconds ? ['-t', String(limitSeconds)] : []),
+    '-map', '0', '-c', 'copy',
+    '-f', 'segment', '-segment_time', String(PART_SECONDS), '-reset_timestamps', '1',
+    outputPattern,
+  ];
+}
+
+// Descarga los primeros `parts` × 5 minutos del video y lo devuelve en partes.
+// Devuelve { files: [mp4...], cleanup }.
+export async function downloadYoutube(
+  url,
+  { cookiesFile, durationSeconds, parts = 1, ytdlpPath = 'yt-dlp', ffmpegPath = 'ffmpeg', runProcess = defaultRunProcess },
+) {
+  const wanted = countParts(durationSeconds, parts);
+  const seconds = wanted * PART_SECONDS;
   const dir = await mkdtemp(join(tmpdir(), 'wa-youtube-'));
   const cleanup = () => rm(dir, { recursive: true, force: true });
   try {
     const file = join(dir, 'video.mp4');
-    await runProcess(ytdlpPath, buildArgs({ url, cookiesFile, ffmpegPath, output: join(dir, 'video.%(ext)s') }));
+    const partial = durationSeconds > seconds;
+    const onlySection = partial && durationSeconds > FULL_DOWNLOAD_MAX_SECONDS;
+    await runProcess(ytdlpPath, buildArgs({ url, cookiesFile, ffmpegPath, output: join(dir, 'video.%(ext)s'), seconds: onlySection ? seconds : null }));
     const info = await stat(file).catch(() => null);
-    // yt-dlp termina bien pero sin archivo cuando el video supera la duración máxima.
-    if (!info) throw new YoutubeDownloadError(`El video dura más de ${MAX_MINUTES} minutos o no se pudo descargar`);
-    if (info.size > MAX_BYTES) throw new YoutubeDownloadError('El video pesa demasiado para WhatsApp');
-    return { file, cleanup };
+    if (!info) throw new YoutubeDownloadError('El video está en vivo o no se pudo descargar');
+
+    let files = [file];
+    if (partial || durationSeconds > PART_SECONDS) {
+      await runProcess(ffmpegPath, buildSplitArgs(file, join(dir, 'parte-%02d.mp4'), partial ? seconds : null));
+      const names = (await readdir(dir)).filter((n) => /^parte-\d+\.mp4$/.test(n)).sort();
+      files = [];
+      for (const name of names) {
+        const path = join(dir, name);
+        if ((await stat(path)).size >= MIN_PART_BYTES) files.push(path);
+      }
+      files = files.slice(0, wanted);
+      if (files.length === 0) throw new YoutubeDownloadError('No se pudo dividir el video');
+    }
+    for (const f of files) {
+      if ((await stat(f)).size > MAX_BYTES) throw new YoutubeDownloadError('Una parte pesa demasiado para WhatsApp');
+    }
+    return { files, cleanup };
   } catch (err) {
     await cleanup();
     throw err;
