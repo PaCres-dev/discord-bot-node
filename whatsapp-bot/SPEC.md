@@ -174,7 +174,7 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 11. **Nombres de comando sin distinguir mayúsculas.**
 12. **`!youtube` (link con vista previa) y `!video` (descarga desde Dailymotion).**
 13. **`!twitter`:** implementado y testeado sin red; falta la prueba real con una cuenta.
-15. **Tokens PO (en curso, no activo):** `youtube-download/allowlist-proxy.js` (red limitada a YouTube/Google, con tests) y `scripts/sandboxed-node.sh` (Node con permisos de archivos y procesos restringidos) están listos para aislar `bgutil-ytdlp-pot-provider` 2.0.0, pero todavía no se usan: falta la prueba completa de descarga, que requiere permiso del dueño en el entorno.
+15. **Tokens PO (probado, descartado por ahora):** con `bgutil-ytdlp-pot-provider` 2.0.0 aislado (`youtube-download/allowlist-proxy.js`: red solo a YouTube/Google; `scripts/sandboxed-node.sh`: Node sin acceso a archivos fuera de su carpeta ni a otros procesos; entorno sin datos sensibles) se generan los tokens, pero YouTube igual responde 403 en videos con licencia. El generador necesita el módulo nativo `canvas`, y habilitar módulos nativos rompe el aislamiento de archivos, así que no se activó. Ambos archivos quedan en el repo sin usar, por si se retoma.
 14. **Descarga de YouTube:** `!ytcookies` importa la sesión desde `chrome://net-export` (sin instalar apps) y `!youtube` descarga con yt-dlp. Probado en vivo: un video de 6 min en 720p H.264 (47 MB) en 9 s.
 
 ## Riesgos conocidos
