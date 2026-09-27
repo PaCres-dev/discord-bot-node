@@ -10,14 +10,15 @@
 
 - Código en la rama **`claude/whatsapp-image-downloader-bot-ilvbz2`**, sin mergear a `master`. Todo el bot está en `whatsapp-bot/`.
 - Qué hace y cómo está organizado: [SPEC.md](SPEC.md). Uso y deploy: [README.md](README.md).
-- Comandos: `!img [1-5] <texto>`, `!youtube` / `!yt <texto>` (link con vista previa), `!video <texto>` (descarga de Dailymotion), `!twitter` / `!x` (sin configurar) y `!help`.
+- Comandos: `!img [1-5] <texto>`, `!youtube` / `!yt <texto>` (descarga con sesión de YouTube; si no, link), `!ytcookies` (importa esa sesión), `!video <texto>` (descarga de Dailymotion), `!twitter` / `!x` (sin configurar) y `!help`.
 - Solo responde a los mensajes del dueño en "Mensaje a mí mismo".
 
 ## Qué se pierde entre sesiones
 
 El contenedor de cada sesión es temporal. Al cerrarse se pierden:
 - **La vinculación de WhatsApp** (`whatsapp-bot/auth/`, fuera del repo a propósito): hay que **vincular de nuevo** con un código de 8 dígitos.
-- **ffmpeg** (para `!video`): hay que reinstalarlo.
+- **ffmpeg** y **yt-dlp** (para `!video` y `!youtube`): hay que reinstalarlos.
+- **La sesión de YouTube** (`auth/youtube-cookies.txt`): el dueño repite `!ytcookies` (pasos en el README).
 - **Los tweets ya enviados** por `!twitter` (`auth/x-seen.json`), si alguna vez se activa.
 
 ## Pasos (los hace Claude)
@@ -34,13 +35,14 @@ El contenedor de cada sesión es temporal. Al cerrarse se pierden:
    ```bash
    cd whatsapp-bot
    npm ci
-   apt-get update && apt-get install -y ffmpeg   # para !video
+   apt-get update && apt-get install -y ffmpeg   # para !video y !youtube
+   python3 -m venv <scratchpad>/venv && <scratchpad>/venv/bin/pip install "yt-dlp[default]"   # para !youtube
    ```
    No usar `ffmpeg-static` de npm: su binario se cae en este entorno.
 4. **Tests:** `npm test`. Tienen que pasar todos, y no usan red.
 5. **Arrancar en segundo plano** con el número que da el dueño (código de país, sin `+`):
    ```bash
-   PHONE_NUMBER=<numero> LOG_LEVEL=warn node src/main.js > <scratchpad>/bot.log 2>&1
+   PHONE_NUMBER=<numero> YTDLP_PATH=<scratchpad>/venv/bin/yt-dlp LOG_LEVEL=warn node src/main.js > <scratchpad>/bot.log 2>&1
    ```
    Usar `run_in_background`. Imprime `Código de vinculación: XXXX-XXXX`. Pasárselo al dueño, que lo escribe en
    **WhatsApp → Dispositivos vinculados → Vincular un dispositivo → Vincular con número de teléfono**.
@@ -60,9 +62,8 @@ El contenedor de cada sesión es temporal. Al cerrarse se pierden:
 
 ## Pendientes y decisiones ya tomadas
 
-- **YouTube:** no se puede descargar desde servidores (YouTube pide iniciar sesión). Se probó yt-dlp, clientes
-  alternativos, tokens PO, Invidious, Piped, cobalt, ssyoutube y loader.to. `!youtube` manda el link; el dueño pidió
-  no tocarlo más.
+- **YouTube:** descarga solo con la sesión del dueño importada con `!ytcookies` (desde `chrome://net-export`, sin apps).
+  No hace falta el servidor de tokens PO. Si YouTube responde 429 (límite por IP), esperar unos minutos.
 - **`!twitter`:** implementado y testeado sin red, **nunca probado contra X**. Se activa con `X_USERNAME`, `X_PASSWORD`
   y `X_EMAIL` (conviene una cuenta secundaria). Es probable que la primera prueba requiera ajustes en `src/x-feed/`;
   los riesgos están en el SPEC.

@@ -18,8 +18,8 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 | Descarga | A través del proxy de imágenes de DuckDuckGo (`external-content.duckduckgo.com`), así no hay que acceder a dominios arbitrarios |
 | SafeSearch | Desactivado |
 | Selección | Una imagen al azar del top 10; si falla la descarga, se prueba otra (máx. 5 intentos) |
-| Comandos | `!img [1-5] <texto>`, `!youtube` / `!yt <texto>`, `!video <texto>`, `!twitter` / `!x` y `!help` / `!ayuda` |
-| YouTube | Solo link con vista previa: YouTube bloquea las descargas desde servidores (probado: yt-dlp, clientes alternativos, tokens PO, Invidious, Piped, cobalt, ssyoutube, loader.to) |
+| Comandos | `!img [1-5] <texto>`, `!youtube` / `!yt <texto>`, `!ytcookies` (documento), `!video <texto>`, `!twitter` / `!x` y `!help` / `!ayuda` |
+| YouTube | Con la sesión de YouTube del dueño (cookies importadas con `!ytcookies` desde un registro de `chrome://net-export`), `!youtube` descarga el video con yt-dlp (H.264, hasta 720p, 20 min y ~90 MB). Sin sesión, o si falla, envía el link con vista previa. Sin cookies YouTube bloquea las descargas desde servidores (probado: yt-dlp, clientes alternativos, tokens PO, Invidious, Piped, cobalt, ssyoutube, loader.to). La API oficial no permite descargar |
 | X (Twitter) | `!twitter` lee el feed "Para ti" iniciando sesión como el usuario (la API oficial no da ese feed y es paga). **Estado: implementado pero sin probar en vivo**, porque todavía no hay una cuenta para usar. Se activa con `X_USERNAME`, `X_PASSWORD` y `X_EMAIL`; sin ellas responde que no está configurado |
 | Videos | `!video` busca y descarga de Dailymotion (sin API key): hasta 20 min, hasta 720p y ~90 MB. ffmpeg une los fragmentos localmente |
 | Permisos | Solo mis propios mensajes (`fromMe`) y solo en el chat "Mensaje a mí mismo" (`@s.whatsapp.net` o `@lid`); ignora el resto. Es una política única en `bot/access.js` que aplica a **todos** los comandos |
@@ -33,7 +33,8 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 - `!img perro salchicha` → busca, elige una imagen al azar del top 10 y la envía al mismo chat con el caption `perro salchicha`.
 - `!img 3 perro salchicha` → envía 3 imágenes distintas del top 10. Un número mayor a 5 se limita a 5. Si solo consigue algunas, avisa `Solo encontré X de N`.
 - `!img` sin texto → responde `Uso: !img [1-5] <búsqueda>`.
-- `!youtube gatos` (o `!yt`, `!YouTube`) → envía el link del primer resultado de YouTube con vista previa (título, canal · duración y miniatura).
+- `!youtube gatos` (o `!yt`, `!YouTube`) → busca en YouTube. Con sesión de YouTube guardada y si dura hasta 20 min: responde `Descargando "<título>" (m:ss)...` y envía el video (caption: título y link). Si no hay sesión, envía el link con vista previa (título, canal · duración y miniatura). Si dura más o es en vivo: link + `Dura más de 20 minutos (o es en vivo), así que te dejo el link.` Si la descarga falla: link + `No pude descargar el video, te dejo el link.` El archivo temporal se borra siempre.
+- `!ytcookies` como texto de un **documento** (el registro de `chrome://net-export` grabado con "Include cookies and credentials" mientras se usa `m.youtube.com` con sesión iniciada) → extrae solo las cookies de `youtube.com`, verifica que haya sesión y las guarda en `AUTH_DIR/youtube-cookies.txt` (permisos 600). Responde `Listo: guardé tu sesión de YouTube (N cookies). Ahora borra el mensaje con el archivo "para todos".` o explica qué faltó. Máx. 150 MB.
 - `!video gatos` → responde `Descargando "<título> (m:ss)"...`, busca en Dailymotion el primer video de hasta 20 min, lo descarga (la mejor calidad hasta 720p que pese menos de ~90 MB) y lo envía como video con el título de caption. Si falla, responde `No pude descargar "<título>"`; sin resultados, `No encontré videos para "<texto>"`. El archivo temporal se borra siempre.
 - `!twitter` (o `!x`) → envía los 10 tweets más recientes del feed "Para ti" que todavía no se hayan enviado, uno por mensaje: `🔁 @quien retuiteó` (si es retweet), `*Nombre* (@usuario) · ↩️ respuesta a @otro` (si es respuesta), el texto y el link. Si tiene fotos, la primera lleva el texto y las demás van solas. Excluye publicidad; incluye retweets y respuestas. Si en la primera página no hay 10 nuevos, sigue leyendo hasta 5 páginas. Un tweet se marca como enviado recién después de enviarlo. Sin configurar → `!twitter todavía no está configurado: faltan X_USERNAME, X_PASSWORD y X_EMAIL.`; si X falla → `No pude leer tu feed de X...`; sin nuevos → `No hay tweets nuevos en tu feed.`
 - `!help` o `!ayuda` → lista los comandos disponibles con su uso (se genera solo a partir del registro).
@@ -63,7 +64,8 @@ whatsapp-bot/
     ├── commands/             # ← lo que el bot sabe hacer
     │   ├── index.js          # registro: la lista de comandos
     │   ├── img/              # !img: img.command.js, parse-args.js, img.test.js
-    │   ├── youtube/          # !youtube / !yt: link con vista previa
+    │   ├── youtube/          # !youtube / !yt: descarga el video (o link con vista previa)
+    │   ├── ytcookies/        # !ytcookies: importa la sesión de YouTube
     │   ├── video/            # !video: descarga y envía un video
     │   ├── twitter/          # !twitter / !x: feed "Para ti" de X
     │   └── help/             # !help: help.command.js, help.test.js
@@ -74,6 +76,9 @@ whatsapp-bot/
     │   └── duckduckgo.js     # búsqueda y descarga de imágenes
     ├── youtube-search/
     │   └── youtube.js        # búsqueda en YouTube (sin API key) y miniatura
+    ├── youtube-download/
+    │   ├── cookies.js        # cookies de YouTube desde chrome://net-export → cookies.txt
+    │   └── ytdlp.js          # descarga con yt-dlp (H.264 ≤ 720p, ≤ 20 min, ≤ ~90 MB)
     ├── video-search/
     │   └── dailymotion.js    # búsqueda y descarga HLS de Dailymotion → MP4 con ffmpeg
     ├── x-feed/               # todo lo de X, para ajustarlo en un solo lugar
@@ -83,7 +88,7 @@ whatsapp-bot/
     │   └── seen-store.js     # IDs de tweets ya enviados
     └── whatsapp/             # todo lo de Baileys queda acá
         ├── connection.js     # sesión, pairing code, reconexión
-        └── incoming.js       # mensaje de Baileys → { id, chatId, fromMe, isSelfChat, text, timestamp }
+        └── incoming.js       # mensaje de Baileys → { id, chatId, fromMe, isSelfChat, text, timestamp, attachment }
 ```
 
 Cada `*.test.js` vive junto al código que prueba. La sesión de WhatsApp se guarda en `whatsapp-bot/auth/` (gitignored), así que reiniciar el bot no obliga a re-vincular.
@@ -94,7 +99,7 @@ Un mensaje recorre siempre el mismo camino:
 
 1. `whatsapp/connection.js` recibe el mensaje de Baileys y `whatsapp/incoming.js` lo convierte en un objeto simple.
 2. `bot/router.js` descarta, en este orden: mensajes enviados por el propio bot, historial viejo y todo lo que `bot/access.js` no permita. Recién después busca el comando.
-3. El comando recibe un `ctx` y responde con `ctx.reply.text(texto)`, `ctx.reply.image(buffer, caption)`, `ctx.reply.video(archivoMp4, caption)` o `ctx.reply.link({ url, title, description, thumbnail })`. No conoce WhatsApp.
+3. El comando recibe un `ctx` (con `ctx.args` y, si el mensaje era un documento, `ctx.attachment` con `download()`) y responde con `ctx.reply.text(texto)`, `ctx.reply.image(buffer, caption)`, `ctx.reply.video(archivoMp4, caption)` o `ctx.reply.link({ url, title, description, thumbnail })`. No conoce WhatsApp.
 
 ### Contrato de un comando
 
@@ -123,7 +128,8 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 - Habilitar un comando para otras personas o chats sería una decisión explícita que primero se actualiza en este spec y en sus tests.
 - Los servicios que descargan archivos solo aceptan sus propios dominios por HTTPS (ej. `video-search/dailymotion.js`: `dailymotion.com` y `dmcdn.net`), y los archivos temporales se borran siempre después de enviarlos.
 - **X:** la contraseña solo se usa para el primer inicio de sesión y nunca se escribe en disco ni en los registros. Se guarda únicamente la sesión (`auth_token` y `ct0`) en `AUTH_DIR/x-session.json` con permisos 600, junto con `x-seen.json` (IDs enviados, máx. 5000). La consulta del feed se actualiza desde un listado público (`fa0311/TwitterInternalAPIDocument`) solo si pasa una validación estricta (queryId simple y features booleanos); si no, se usa la de respaldo. Las fotos solo se bajan de `pbs.twimg.com` por HTTPS.
-- Los programas externos (ffmpeg) se ejecutan con una lista de argumentos, nunca a través de una shell.
+- **YouTube:** las cookies del registro de Chrome se filtran a solo `youtube.com` (el resto del registro se descarta en memoria) y se guardan con permisos 600 en `AUTH_DIR`. El archivo recibido nunca se escribe en disco. yt-dlp solo recibe links `https://www.youtube.com/watch?v=<id>` validados, después de `--`.
+- Los programas externos (ffmpeg, yt-dlp) se ejecutan con una lista de argumentos, nunca a través de una shell.
 - `config.js` es el único que lee la configuración, salvo `proxy.js` con las variables estándar de proxy. El número de teléfono y la sesión nunca se commitean.
 
 ## Tests
@@ -141,6 +147,7 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 | `HTTPS_PROXY` | No | Si existe, la conexión y las descargas pasan por ese proxy (necesario en el entorno de Claude Code) |
 | `LOG_LEVEL` | No (default `warn`) | Nivel de logs de Baileys |
 | `X_USERNAME`, `X_PASSWORD`, `X_EMAIL` | Solo para `!twitter`, la primera vez | Cuenta de X. Después alcanza con la sesión guardada en `AUTH_DIR` |
+| `YTDLP_PATH` | No (default `yt-dlp`) | Ruta a yt-dlp para `!youtube`. El `Dockerfile` ya lo instala (`yt-dlp[default]`) |
 | `FFMPEG_PATH` | No (default `ffmpeg`) | Ruta a ffmpeg, necesario para `!video`. El `Dockerfile` ya lo instala |
 
 ## Red necesaria
@@ -167,6 +174,7 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 11. **Nombres de comando sin distinguir mayúsculas.**
 12. **`!youtube` (link con vista previa) y `!video` (descarga desde Dailymotion).**
 13. **`!twitter`:** implementado y testeado sin red; falta la prueba real con una cuenta.
+14. **Descarga de YouTube:** `!ytcookies` importa la sesión desde `chrome://net-export` (sin instalar apps) y `!youtube` descarga con yt-dlp. Probado en vivo: un video de 6 min en 720p H.264 (47 MB) en 9 s.
 
 ## Riesgos conocidos
 
@@ -174,6 +182,7 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 - DuckDuckGo puede cambiar su endpoint interno. Todo está aislado en `image-search/duckduckgo.js` para arreglarlo fácil.
 - YouTube y Dailymotion pueden cambiar su HTML o su API. Cada uno está aislado en su archivo (`youtube-search/`, `video-search/`).
 - `!video` tarda unos segundos por minuto de video, y mientras tanto los demás comandos esperan su turno (el router atiende de a uno).
+- Descargar de YouTube va contra sus términos y la cuenta cuyas cookies se usan puede ser marcada. Las cookies vencen cada tanto: se repite `!ytcookies`. Algunos videos (ej. Vevo) pueden no descargarse; en ese caso llega el link. La IP del servidor recibe límites (429) si se hacen muchos pedidos seguidos.
 - `!twitter` va contra las reglas de X: la cuenta usada puede ser bloqueada o suspendida. Se recomienda una cuenta secundaria.
 - X puede pedir verificar el inicio de sesión (código por email o captcha) al entrar desde un servidor; sin poder recibir códigos, el inicio de sesión fallaría.
 - X cambia seguido su API interna. Lo más probable es que la primera prueba real requiera ajustes, todos dentro de `x-feed/`. El generador de `x-client-transaction-id` hoy no funciona con la web nueva de X; el pedido se envía sin ese encabezado.

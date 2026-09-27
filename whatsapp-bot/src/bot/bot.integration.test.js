@@ -57,6 +57,9 @@ const fakeXFeed = {
   downloadPhoto: async () => Buffer.from('jpg'),
 };
 
+// Sin sesión de YouTube guardada: !youtube manda el link (la descarga se prueba en youtube.test.js).
+const fakeDownloader = { isConfigured: async () => false, download: async () => null, parseDuration: () => 0, maxMinutes: 20 };
+
 const savedCookies = [];
 const fakeCookies = {
   extractYoutubeCookies: (text) => new Map([['SAPISID', text]]),
@@ -70,7 +73,7 @@ function setup(opts) {
   const imageSearch = fakeImages(opts);
   const videoSearch = fakeVideos();
   const router = createRouter({
-    commands: createCommands({ imageSearch, youtubeSearch: fakeYoutube, videoSearch, xFeed: fakeXFeed, youtubeCookies: fakeCookies }),
+    commands: createCommands({ imageSearch, youtubeSearch: fakeYoutube, youtubeDownloader: fakeDownloader, videoSearch, xFeed: fakeXFeed, youtubeCookies: fakeCookies }),
     prefix: '!',
     logger: silent,
     startedAt: 1000,

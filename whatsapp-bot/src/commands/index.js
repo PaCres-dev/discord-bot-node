@@ -7,10 +7,10 @@ import { createTwitterCommand } from './twitter/twitter.command.js';
 import { createYtcookiesCommand } from './ytcookies/ytcookies.command.js';
 import { helpCommand } from './help/help.command.js';
 
-export function createCommands({ imageSearch, youtubeSearch, videoSearch, xFeed, youtubeCookies }) {
+export function createCommands({ imageSearch, youtubeSearch, youtubeDownloader, videoSearch, xFeed, youtubeCookies }) {
   return [
     createImgCommand({ getImages: imageSearch.getRandomImages }),
-    createYoutubeCommand({ findFirstVideo: youtubeSearch.findFirstVideo }),
+    createYoutubeCommand({ findFirstVideo: youtubeSearch.findFirstVideo, downloader: youtubeDownloader }),
     createVideoCommand({
       searchVideos: videoSearch.searchVideos,
       downloadVideo: videoSearch.downloadVideo,

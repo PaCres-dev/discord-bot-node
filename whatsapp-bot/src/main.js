@@ -10,6 +10,7 @@ import * as dailymotion from './video-search/dailymotion.js';
 import { createTransactionIdGenerator, createXFeed } from './x-feed/x.js';
 import { join } from 'node:path';
 import * as cookies from './youtube-download/cookies.js';
+import * as ytdlp from './youtube-download/ytdlp.js';
 import { startWhatsApp } from './whatsapp/connection.js';
 
 const config = loadConfig();
@@ -26,6 +27,13 @@ const router = createRouter({
   commands: createCommands({
     imageSearch,
     youtubeSearch,
+    youtubeDownloader: {
+      isConfigured: () => cookies.hasCookiesFile(youtubeCookiesFile),
+      download: (url) =>
+        ytdlp.downloadYoutube(url, { cookiesFile: youtubeCookiesFile, ytdlpPath: config.ytdlpPath, ffmpegPath: config.ffmpegPath }),
+      parseDuration: ytdlp.parseDuration,
+      maxMinutes: ytdlp.MAX_MINUTES,
+    },
     videoSearch: {
       ...dailymotion,
       downloadVideo: (video) => dailymotion.downloadVideo(video, { ffmpegPath: config.ffmpegPath }),

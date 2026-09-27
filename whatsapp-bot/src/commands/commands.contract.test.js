@@ -6,6 +6,7 @@ import { createCommands } from './index.js';
 const commands = createCommands({
   imageSearch: { getRandomImages: async () => [] },
   youtubeSearch: { findFirstVideo: async () => null },
+  youtubeDownloader: { isConfigured: async () => false, download: async () => null, parseDuration: () => 0, maxMinutes: 20 },
   videoSearch: { searchVideos: async () => [], downloadVideo: async () => null, MAX_MINUTES: 20 },
   xFeed: { isConfigured: async () => false, getNewTweets: async () => [], markSent: async () => {}, downloadPhoto: async () => null },
   youtubeCookies: { extractYoutubeCookies: () => new Map(), toNetscape: () => '', saveCookies: async () => {}, maxBytes: 1 },

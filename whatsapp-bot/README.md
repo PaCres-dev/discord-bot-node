@@ -4,7 +4,8 @@ Bot mínimo vinculado a tu WhatsApp personal. En el chat "Mensaje a mí mismo":
 
 - `!img gato` → una imagen al azar del top 10 de DuckDuckGo.
 - `!img 3 gato` → 3 imágenes distintas (máximo 5).
-- `!youtube gatos` (o `!yt`) → link del primer video de YouTube, con vista previa.
+- `!youtube gatos` (o `!yt`) → el primer video de YouTube descargado (hasta 20 min, 720p). Sin sesión de YouTube guardada, o si no se puede bajar, te manda el link con vista previa.
+- `!ytcookies` → como texto de un documento: guarda tu sesión de YouTube (ver abajo).
 - `!video gatos` → descarga el primer video de Dailymotion (hasta 20 min, 720p) y te lo envía.
 - `!twitter` (o `!x`) → 10 tweets nuevos de tu feed "Para ti" de X (necesita configurar la cuenta, ver abajo).
 - `!help` (o `!ayuda`) → lista de comandos.
@@ -32,6 +33,19 @@ basta con `npm start`.
 Variables opcionales: `AUTH_DIR` (carpeta de sesión, default `./auth`), `HTTPS_PROXY`
 (la conexión y las descargas pasan por ese proxy), `LOG_LEVEL` (default `warn`) y
 `FFMPEG_PATH` (default `ffmpeg`).
+
+## Activar la descarga de YouTube (`!ytcookies`)
+
+YouTube solo deja descargar desde servidores con una sesión iniciada. Desde el Chrome del celular, sin instalar nada:
+
+1. Abre una pestaña de incógnito e inicia sesión en `m.youtube.com`.
+2. En otra pestaña abre `chrome://net-export`, marca **Include cookies and credentials** y toca **Start Logging**.
+3. En la pestaña de incógnito abre un par de videos. No navegues otras páginas.
+4. Vuelve a `chrome://net-export`: **Stop Logging** → **Share Log** → mándalo a "Mensaje a mí mismo" como documento con el texto `!ytcookies`.
+5. Cuando el bot confirme, borra ese mensaje "para todos" y cierra la pestaña de incógnito **sin cerrar sesión**.
+
+El bot guarda solo las cookies de YouTube en `auth/youtube-cookies.txt` (fuera del repo). Cuando venzan, repite los pasos.
+Requiere `yt-dlp` (`pip install "yt-dlp[default]"`, o `YTDLP_PATH`); el `Dockerfile` ya lo incluye.
 
 ## Activar `!twitter`
 
