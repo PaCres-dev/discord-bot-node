@@ -1,6 +1,6 @@
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { getRandomImages, searchImages } from '../src/images.js';
+import { getRandomImages, searchImages } from './duckduckgo.js';
 
 // Reemplaza fetch por un DuckDuckGo falso, sin red.
 const realFetch = globalThis.fetch;

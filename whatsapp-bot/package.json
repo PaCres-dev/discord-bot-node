@@ -4,14 +4,14 @@
   "private": true,
   "description": "Bot de WhatsApp que responde a !img <texto> con una imagen",
   "type": "module",
-  "main": "src/index.js",
+  "main": "src/main.js",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "start": "node src/index.js",
-    "test:search": "node src/test-search.js",
-    "test": "node --test"
+    "start": "node src/main.js",
+    "test": "node --test",
+    "test:search": "node scripts/search-images.js"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^7.0.0-rc14",

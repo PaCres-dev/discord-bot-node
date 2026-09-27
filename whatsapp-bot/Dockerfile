@@ -5,4 +5,4 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY src ./src
 VOLUME /app/auth
-CMD ["node", "src/index.js"]
+CMD ["node", "src/main.js"]

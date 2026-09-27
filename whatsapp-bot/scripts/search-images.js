@@ -1,7 +1,7 @@
-// Prueba aislada de la búsqueda: npm run test:search -- gato
+// Prueba contra DuckDuckGo real (con red): npm run test:search -- gato
 import { writeFile } from 'node:fs/promises';
-import './proxy.js';
-import { getRandomImages, searchImages } from './images.js';
+import '../src/proxy.js';
+import { getRandomImages, searchImages } from '../src/image-search/duckduckgo.js';
 
 const query = process.argv.slice(2).join(' ') || 'gato';
 

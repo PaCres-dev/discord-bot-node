@@ -1,9 +1,10 @@
-# Bot de WhatsApp — `!img`
+# Bot de WhatsApp
 
 Bot mínimo vinculado a tu WhatsApp personal. En el chat "Mensaje a mí mismo":
 
 - `!img gato` → una imagen al azar del top 10 de DuckDuckGo.
 - `!img 3 gato` → 3 imágenes distintas (máximo 5).
+- `!help` (o `!ayuda`) → lista de comandos.
 
 Solo responde a tus propios mensajes y solo en ese chat. Detalles en [SPEC.md](SPEC.md).
 
@@ -14,7 +15,8 @@ Requiere Node 20 o superior.
 ```bash
 cd whatsapp-bot
 npm install
-npm run test:search -- gato          # prueba la búsqueda sin WhatsApp
+npm test                              # tests sin red
+npm run test:search -- gato          # prueba la búsqueda real, sin WhatsApp
 PHONE_NUMBER=5491122334455 npm start  # número con código de país, sin +
 ```
 
@@ -32,11 +34,20 @@ Variables opcionales: `AUTH_DIR` (carpeta de sesión, default `./auth`), `HTTPS_
 npm test
 ```
 
-No usan la red ni WhatsApp: simulan DuckDuckGo y el socket. Cubren el formato del comando
-(`!img`, cantidad 1–5), que solo responda a tus mensajes en "Mensaje a mí mismo"
-(`@lid` y `@s.whatsapp.net`), que no entre en bucles, los mensajes de error y la
-búsqueda/descarga (SafeSearch desactivado, top 10, sin repetidas, máx. 5 fallos).
-Córrelos antes de cada cambio. `npm run test:search -- gato` prueba contra DuckDuckGo real.
+No usan la red ni WhatsApp: simulan DuckDuckGo y el socket. Cubren cada comando, el router
+(solo tus mensajes en "Mensaje a mí mismo", `@lid` y `@s.whatsapp.net`, anti-bucle,
+historial, errores aislados, orden), la configuración y la búsqueda/descarga.
+GitHub Actions los corre en cada push que toque `whatsapp-bot/`.
+`npm run test:search -- gato` prueba contra DuckDuckGo real.
+
+## Agregar un comando
+
+1. Crea `src/commands/<nombre>/<nombre>.command.js` con `{ name, description, usage, run(ctx) }`.
+2. Súmalo a la lista en `src/commands/index.js`.
+3. Agrega su test al lado y corre `npm test`.
+
+`!help` lo muestra solo y la seguridad (solo tú, solo tu chat) la aplica el router a todos
+los comandos. Detalles y reglas en [SPEC.md](SPEC.md#arquitectura).
 
 ## Desplegar en Railway (24/7)
 

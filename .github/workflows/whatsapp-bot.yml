@@ -1,0 +1,33 @@
+name: WhatsApp bot tests
+
+on:
+  push:
+    paths:
+      - 'whatsapp-bot/**'
+      - '.github/workflows/whatsapp-bot.yml'
+  pull_request:
+    paths:
+      - 'whatsapp-bot/**'
+      - '.github/workflows/whatsapp-bot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    defaults:
+      run:
+        working-directory: whatsapp-bot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: whatsapp-bot/package-lock.json
+      - run: npm ci
+      - run: npm test
