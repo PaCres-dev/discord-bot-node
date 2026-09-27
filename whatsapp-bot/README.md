@@ -1,8 +1,11 @@
 # Bot de WhatsApp — `!img`
 
-Bot mínimo vinculado a tu WhatsApp personal. Escribe `!img <texto>` (por ejemplo en
-"Mensaje a mí mismo") y te responde con una imagen al azar del top 10 de DuckDuckGo.
-Solo responde a tus propios mensajes. Detalles en [SPEC.md](SPEC.md).
+Bot mínimo vinculado a tu WhatsApp personal. En el chat "Mensaje a mí mismo":
+
+- `!img gato` → una imagen al azar del top 10 de DuckDuckGo.
+- `!img 3 gato` → 3 imágenes distintas (máximo 5).
+
+Solo responde a tus propios mensajes y solo en ese chat. Detalles en [SPEC.md](SPEC.md).
 
 ## Correrlo localmente
 

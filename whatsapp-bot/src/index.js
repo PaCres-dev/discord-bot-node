@@ -1,5 +1,6 @@
 // Bot de WhatsApp: responde a "!img <texto>" (solo mensajes propios) con una imagen.
 import makeWASocket, {
+  areJidsSameUser,
   Browsers,
   DisconnectReason,
   fetchLatestWaWebVersion,
@@ -8,11 +9,12 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import { proxyAgent } from './proxy.js';
-import { getRandomImage } from './images.js';
+import { getRandomImages } from './images.js';
 
 const AUTH_DIR = process.env.AUTH_DIR || './auth';
 const PHONE_NUMBER = (process.env.PHONE_NUMBER || '').replace(/\D/g, '');
 const PREFIX = '!img';
+const MAX_IMAGES = 5;
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'warn' });
 const startedAt = Math.floor(Date.now() / 1000);
@@ -22,6 +24,19 @@ const sentByBot = new Set();
 function getText(message) {
   const content = normalizeMessageContent(message);
   return content?.conversation || content?.extendedTextMessage?.text || '';
+}
+
+// Solo "Mensaje a mí mismo": el chat puede venir como mi número (@s.whatsapp.net) o como mi @lid.
+function isSelfChat(sock, jid) {
+  return areJidsSameUser(jid, sock.user?.id) || areJidsSameUser(jid, sock.user?.lid);
+}
+
+// "!img 3 gato" → { count: 3, query: 'gato' }. El número va primero y se limita a MAX_IMAGES.
+function parseArgs(args) {
+  const match = args.match(/^(\d{1,2})\s+(.+)$/);
+  if (!match) return { count: 1, query: args };
+  const count = Math.min(Math.max(Number(match[1]), 1), MAX_IMAGES);
+  return { count, query: match[2].trim() };
 }
 
 async function reply(sock, jid, content, quoted) {
@@ -37,28 +52,33 @@ async function handleMessage(sock, msg) {
   const text = getText(msg.message).trim();
   if (text !== PREFIX && !text.startsWith(`${PREFIX} `)) return;
 
-  // El self-chat puede venir como @s.whatsapp.net o como @lid; respondemos al mismo chat.
   const jid = msg.key.remoteJid;
-  const query = text.slice(PREFIX.length).trim();
+  if (!isSelfChat(sock, jid)) return;
   console.log(`[${jid}] ${text}`);
 
+  const { count, query } = parseArgs(text.slice(PREFIX.length).trim());
   if (!query) {
-    await reply(sock, jid, { text: `Uso: ${PREFIX} <búsqueda>` }, msg);
+    await reply(sock, jid, { text: `Uso: ${PREFIX} [1-${MAX_IMAGES}] <búsqueda>` }, msg);
     return;
   }
 
-  let image = null;
+  let images = [];
   try {
-    image = await getRandomImage(query, logger);
+    images = await getRandomImages(query, count, logger);
   } catch (err) {
     logger.error(err, 'Falló la búsqueda');
   }
-  if (!image) {
+  if (images.length === 0) {
     await reply(sock, jid, { text: `No encontré imágenes para "${query}"` }, msg);
     return;
   }
-  await reply(sock, jid, { image: image.buffer, caption: query }, msg);
-  console.log(`  → enviada ${image.url}`);
+  for (const image of images) {
+    await reply(sock, jid, { image: image.buffer, caption: query }, msg);
+    console.log(`  → enviada ${image.url}`);
+  }
+  if (images.length < count) {
+    await reply(sock, jid, { text: `Solo encontré ${images.length} de ${count} para "${query}"` }, msg);
+  }
 }
 
 async function start() {

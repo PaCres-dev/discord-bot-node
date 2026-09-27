@@ -75,17 +75,20 @@ async function download(imageUrl) {
   return buffer;
 }
 
-// Busca, elige una al azar del top 10 y la descarga. Reintenta con otra hasta 5 veces.
-// Devuelve { buffer, url } o null si no hay resultados o todas las descargas fallan.
-export async function getRandomImage(query, logger = console) {
+// Busca y descarga hasta `count` imágenes distintas, elegidas al azar del top 10.
+// Si una descarga falla prueba con otra (máx. 5 fallos). Devuelve [{ buffer, url }], vacío si no hay nada.
+export async function getRandomImages(query, count = 1, logger = console) {
   const candidates = await searchImages(query);
-  for (let i = 0; i < MAX_INTENTOS && candidates.length > 0; i++) {
+  const images = [];
+  let fails = 0;
+  while (images.length < count && fails < MAX_INTENTOS && candidates.length > 0) {
     const [url] = candidates.splice(Math.floor(Math.random() * candidates.length), 1);
     try {
-      return { buffer: await download(url), url };
+      images.push({ buffer: await download(url), url });
     } catch (err) {
-      logger.warn?.(`Intento ${i + 1} falló (${url}): ${err.message}`);
+      fails++;
+      logger.warn?.(`Intento fallido ${fails} (${url}): ${err.message}`);
     }
   }
-  return null;
+  return images;
 }

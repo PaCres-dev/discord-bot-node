@@ -17,8 +17,8 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 | Descarga | A través del proxy de imágenes de DuckDuckGo (`external-content.duckduckgo.com`), así no hay que acceder a dominios arbitrarios |
 | SafeSearch | Desactivado |
 | Selección | Una imagen al azar del top 10; si falla la descarga, se prueba otra (máx. 5 intentos) |
-| Comando | `!img <texto>` |
-| Permisos | Solo mis propios mensajes (`fromMe`), por ejemplo desde el chat "Mensaje a mí mismo"; ignora a los demás |
+| Comando | `!img [1-5] <texto>` (cantidad opcional, default 1, máximo 5) |
+| Permisos | Solo mis propios mensajes (`fromMe`) y solo en el chat "Mensaje a mí mismo" (`@s.whatsapp.net` o `@lid`); ignora el resto |
 | Estructura | El bot de Discord sigue en la raíz, sin cambios. El de WhatsApp va en `/whatsapp-bot` con su propio `package.json` |
 | Ejecución hoy | Dentro de la sesión de Claude Code; funciona mientras la sesión esté activa |
 | Nube (después) | `Dockerfile` y README para desplegar en Railway, Render o un VPS |
@@ -26,10 +26,11 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 ## Comportamiento
 
 - `!img perro salchicha` → busca, elige una imagen al azar del top 10 y la envía al mismo chat con el caption `perro salchicha`.
-- `!img` sin texto → responde `Uso: !img <búsqueda>`.
+- `!img 3 perro salchicha` → envía 3 imágenes distintas del top 10. Un número mayor a 5 se limita a 5. Si solo consigue algunas, avisa `Solo encontré X de N`.
+- `!img` sin texto → responde `Uso: !img [1-5] <búsqueda>`.
 - Sin resultados, o 5 descargas fallidas → responde `No encontré imágenes para "<texto>"`.
 - Cualquier otro mensaje → lo ignora.
-- Mensajes de otras personas → los ignora, incluso si empiezan con `!img`.
+- Mensajes de otras personas, o míos en otros chats o grupos → los ignora, incluso si empiezan con `!img`.
 - No entra en bucles: el caption de la imagen enviada nunca empieza con `!img`.
 
 ## Estructura de archivos
