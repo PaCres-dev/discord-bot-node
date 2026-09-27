@@ -37,7 +37,7 @@ function tunnelDirect(host, port) {
 }
 
 // Devuelve { url, close(), denied } — denied lista los hosts rechazados (para registros y tests).
-export async function startAllowlistProxy({ allowed = YOUTUBE_HOSTS, upstream = null, logger = console } = {}) {
+export async function startAllowlistProxy({ allowed = YOUTUBE_HOSTS, upstream = null, port: listenPort = 0, logger = console } = {}) {
   const denied = [];
   const server = createServer((req, res) => {
     // Solo túneles HTTPS; HTTP plano no se permite.
@@ -63,7 +63,7 @@ export async function startAllowlistProxy({ allowed = YOUTUBE_HOSTS, upstream = 
       clientSocket.end('HTTP/1.1 502 Bad Gateway\r\n\r\n');
     }
   });
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await new Promise((resolve, reject) => server.once('error', reject).listen(listenPort, '127.0.0.1', resolve));
   const { port } = server.address();
   return {
     url: `http://127.0.0.1:${port}`,
