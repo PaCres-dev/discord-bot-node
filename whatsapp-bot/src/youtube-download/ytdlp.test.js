@@ -45,6 +45,13 @@ test('buildArgs: cookies, sin en vivo, H.264, tramo opcional y la URL después d
   assert.equal(partial[partial.indexOf('--download-sections') + 1], '*0-900');
 });
 
+test('buildArgs: ffmpeg sin ruta se busca en el PATH (no se pasa --ffmpeg-location)', () => {
+  const bare = buildArgs({ url: URL_OK, cookiesFile: '/c', ffmpegPath: 'ffmpeg', output: 'o' });
+  assert.ok(!bare.includes('--ffmpeg-location'));
+  const full = buildArgs({ url: URL_OK, cookiesFile: '/c', ffmpegPath: '/usr/bin/ffmpeg', output: 'o' });
+  assert.equal(full[full.indexOf('--ffmpeg-location') + 1], '/usr/bin/ffmpeg');
+});
+
 test('buildSplitArgs: partes de 5 minutos sin volver a codificar', () => {
   const args = buildSplitArgs('/tmp/v.mp4', '/tmp/parte-%02d.mp4');
   assert.equal(args[args.indexOf('-segment_time') + 1], '300');

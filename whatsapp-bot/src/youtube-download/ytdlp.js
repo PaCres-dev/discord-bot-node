@@ -63,7 +63,9 @@ export function buildArgs({ url, cookiesFile, ffmpegPath, output, seconds = null
   return [
     '--cookies', cookiesFile,
     '--js-runtimes', 'node',
-    '--ffmpeg-location', ffmpegPath,
+    // Solo si es una ruta: yt-dlp toma "--ffmpeg-location ffmpeg" como ruta inexistente y no une
+    // audio y video. Sin la opción, busca ffmpeg en el PATH.
+    ...(ffmpegPath.includes('/') ? ['--ffmpeg-location', ffmpegPath] : []),
     '--no-playlist',
     '--no-progress',
     '--match-filter', '!is_live',
