@@ -18,7 +18,9 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 | Descarga | A través del proxy de imágenes de DuckDuckGo (`external-content.duckduckgo.com`), así no hay que acceder a dominios arbitrarios |
 | SafeSearch | Desactivado |
 | Selección | Una imagen al azar del top 10; si falla la descarga, se prueba otra (máx. 5 intentos) |
-| Comandos | `!img [1-5] <texto>` (cantidad opcional, default 1, máximo 5) y `!help` / `!ayuda` |
+| Comandos | `!img [1-5] <texto>`, `!youtube` / `!yt <texto>`, `!video <texto>` y `!help` / `!ayuda` |
+| YouTube | Solo link con vista previa: YouTube bloquea las descargas desde servidores (probado: yt-dlp, clientes alternativos, tokens PO, Invidious, Piped, cobalt, ssyoutube, loader.to) |
+| Videos | `!video` busca y descarga de Dailymotion (sin API key): hasta 20 min, hasta 720p y ~90 MB. ffmpeg une los fragmentos localmente |
 | Permisos | Solo mis propios mensajes (`fromMe`) y solo en el chat "Mensaje a mí mismo" (`@s.whatsapp.net` o `@lid`); ignora el resto. Es una política única en `bot/access.js` que aplica a **todos** los comandos |
 | Arquitectura | Screaming architecture: carpetas por funcionalidad (`commands/img`, `commands/help`), un router común y WhatsApp aislado en `whatsapp/` |
 | Estructura | El bot de Discord sigue en la raíz, sin cambios. El de WhatsApp va en `/whatsapp-bot` con su propio `package.json` |
@@ -30,6 +32,8 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 - `!img perro salchicha` → busca, elige una imagen al azar del top 10 y la envía al mismo chat con el caption `perro salchicha`.
 - `!img 3 perro salchicha` → envía 3 imágenes distintas del top 10. Un número mayor a 5 se limita a 5. Si solo consigue algunas, avisa `Solo encontré X de N`.
 - `!img` sin texto → responde `Uso: !img [1-5] <búsqueda>`.
+- `!youtube gatos` (o `!yt`, `!YouTube`) → envía el link del primer resultado de YouTube con vista previa (título, canal · duración y miniatura).
+- `!video gatos` → responde `Descargando "<título> (m:ss)"...`, busca en Dailymotion el primer video de hasta 20 min, lo descarga (la mejor calidad hasta 720p que pese menos de ~90 MB) y lo envía como video con el título de caption. Si falla, responde `No pude descargar "<título>"`; sin resultados, `No encontré videos para "<texto>"`. El archivo temporal se borra siempre.
 - `!help` o `!ayuda` → lista los comandos disponibles con su uso (se genera solo a partir del registro).
 - Si un comando falla inesperadamente → responde `Hubo un error con !<comando>` y el bot sigue funcionando.
 - Varios comandos seguidos → se atienden de a uno, en orden, sin mezclar respuestas.
@@ -57,12 +61,18 @@ whatsapp-bot/
     ├── commands/             # ← lo que el bot sabe hacer
     │   ├── index.js          # registro: la lista de comandos
     │   ├── img/              # !img: img.command.js, parse-args.js, img.test.js
+    │   ├── youtube/          # !youtube / !yt: link con vista previa
+    │   ├── video/            # !video: descarga y envía un video
     │   └── help/             # !help: help.command.js, help.test.js
     ├── bot/                  # motor común a todos los comandos
     │   ├── router.js         # "!nombre args" → comando; anti-bucle, historial, errores, orden
     │   └── access.js         # política de acceso única
     ├── image-search/
     │   └── duckduckgo.js     # búsqueda y descarga de imágenes
+    ├── youtube-search/
+    │   └── youtube.js        # búsqueda en YouTube (sin API key) y miniatura
+    ├── video-search/
+    │   └── dailymotion.js    # búsqueda y descarga HLS de Dailymotion → MP4 con ffmpeg
     └── whatsapp/             # todo lo de Baileys queda acá
         ├── connection.js     # sesión, pairing code, reconexión
         └── incoming.js       # mensaje de Baileys → { id, chatId, fromMe, isSelfChat, text, timestamp }
@@ -76,7 +86,7 @@ Un mensaje recorre siempre el mismo camino:
 
 1. `whatsapp/connection.js` recibe el mensaje de Baileys y `whatsapp/incoming.js` lo convierte en un objeto simple.
 2. `bot/router.js` descarta, en este orden: mensajes enviados por el propio bot, historial viejo y todo lo que `bot/access.js` no permita. Recién después busca el comando.
-3. El comando recibe un `ctx` y responde con `ctx.reply.text(texto)` o `ctx.reply.image(buffer, caption)`. No conoce WhatsApp.
+3. El comando recibe un `ctx` y responde con `ctx.reply.text(texto)`, `ctx.reply.image(buffer, caption)`, `ctx.reply.video(archivoMp4, caption)` o `ctx.reply.link({ url, title, description, thumbnail })`. No conoce WhatsApp.
 
 ### Contrato de un comando
 
@@ -103,6 +113,8 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 
 - La política de acceso vive **solo** en `bot/access.js` y el router la aplica antes de ejecutar cualquier comando. Los comandos no deciden quién los usa: el test de contrato falla si un comando define `access`.
 - Habilitar un comando para otras personas o chats sería una decisión explícita que primero se actualiza en este spec y en sus tests.
+- Los servicios que descargan archivos solo aceptan sus propios dominios por HTTPS (ej. `video-search/dailymotion.js`: `dailymotion.com` y `dmcdn.net`), y los archivos temporales se borran siempre después de enviarlos.
+- Los programas externos (ffmpeg) se ejecutan con una lista de argumentos, nunca a través de una shell.
 - `config.js` es el único que lee la configuración, salvo `proxy.js` con las variables estándar de proxy. El número de teléfono y la sesión nunca se commitean.
 
 ## Tests
@@ -119,12 +131,15 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 | `AUTH_DIR` | No (default `./auth`) | Dónde se guarda la sesión; en la nube apunta a un volumen persistente |
 | `HTTPS_PROXY` | No | Si existe, la conexión y las descargas pasan por ese proxy (necesario en el entorno de Claude Code) |
 | `LOG_LEVEL` | No (default `warn`) | Nivel de logs de Baileys |
+| `FFMPEG_PATH` | No (default `ffmpeg`) | Ruta a ffmpeg, necesario para `!video`. El `Dockerfile` ya lo instala |
 
 ## Red necesaria
 
 - `web.whatsapp.com`, `*.whatsapp.net`: conexión a WhatsApp y subida de media
 - `duckduckgo.com`: búsqueda
 - `external-content.duckduckgo.com`: descarga de imágenes
+- `www.youtube.com`, `i.ytimg.com`: búsqueda y miniatura para `!youtube`
+- `api.dailymotion.com`, `www.dailymotion.com`, `cdndirector.dailymotion.com`, `*.dmcdn.net`: búsqueda y descarga para `!video`
 
 ## Plan de desarrollo
 
@@ -138,9 +153,13 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 8. **Varias imágenes y solo self-chat:** `!img [1-5] <texto>` y respuesta únicamente en "Mensaje a mí mismo".
 9. **Tests** sin red con `node:test`.
 10. **Arquitectura por comandos:** router, política de acceso única, registro de comandos, `!help`, tests de contrato y CI en GitHub Actions.
+11. **Nombres de comando sin distinguir mayúsculas.**
+12. **`!youtube` (link con vista previa) y `!video` (descarga desde Dailymotion).**
 
 ## Riesgos conocidos
 
 - Baileys no es oficial. Con uso personal y bajo volumen el riesgo de bloqueo es bajo, pero existe.
 - DuckDuckGo puede cambiar su endpoint interno. Todo está aislado en `image-search/duckduckgo.js` para arreglarlo fácil.
+- YouTube y Dailymotion pueden cambiar su HTML o su API. Cada uno está aislado en su archivo (`youtube-search/`, `video-search/`).
+- `!video` tarda unos segundos por minuto de video, y mientras tanto los demás comandos esperan su turno (el router atiende de a uno).
 - Aquí el bot vive mientras esta sesión esté activa; para 24/7 hay que desplegarlo en la nube (paso 6).

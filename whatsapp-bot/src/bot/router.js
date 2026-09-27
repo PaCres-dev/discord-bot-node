@@ -54,6 +54,20 @@ export function createRouter({ commands, prefix, logger = console, startedAt = 0
       reply: {
         text: (text) => track({ text }),
         image: (buffer, caption) => track({ image: buffer, caption }),
+        // Video desde un archivo local (MP4).
+        video: (file, caption) => track({ video: { url: file }, caption, mimetype: 'video/mp4' }),
+        // Link con vista previa (título, descripción y miniatura).
+        link: ({ url, title, description, thumbnail }) =>
+          track({
+            text: `*${title}*\n${url}`,
+            linkPreview: {
+              'canonical-url': url,
+              'matched-text': url,
+              title,
+              description,
+              ...(thumbnail ? { jpegThumbnail: thumbnail } : {}),
+            },
+          }),
       },
     };
 

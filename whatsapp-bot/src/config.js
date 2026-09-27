@@ -9,6 +9,7 @@ export function loadConfig(env = process.env) {
     phoneNumber,
     authDir: env.AUTH_DIR || './auth',
     logLevel: env.LOG_LEVEL || 'warn',
+    ffmpegPath: env.FFMPEG_PATH || 'ffmpeg',
     // Fijo en el código a propósito: todos los comandos empiezan con "!".
     prefix: '!',
   });

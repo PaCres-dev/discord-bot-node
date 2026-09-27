@@ -5,6 +5,8 @@ import { loadConfig } from './config.js';
 import { createRouter } from './bot/router.js';
 import { createCommands } from './commands/index.js';
 import * as imageSearch from './image-search/duckduckgo.js';
+import * as youtubeSearch from './youtube-search/youtube.js';
+import * as dailymotion from './video-search/dailymotion.js';
 import { startWhatsApp } from './whatsapp/connection.js';
 
 const config = loadConfig();
@@ -17,7 +19,14 @@ const logger = {
 };
 
 const router = createRouter({
-  commands: createCommands({ imageSearch }),
+  commands: createCommands({
+    imageSearch,
+    youtubeSearch,
+    videoSearch: {
+      ...dailymotion,
+      downloadVideo: (video) => dailymotion.downloadVideo(video, { ffmpegPath: config.ffmpegPath }),
+    },
+  }),
   prefix: config.prefix,
   logger,
   startedAt: Math.floor(Date.now() / 1000),

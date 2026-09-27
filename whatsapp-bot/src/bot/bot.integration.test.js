@@ -31,11 +31,29 @@ function fakeImages({ available = Infinity, fail = false } = {}) {
   return { getRandomImages, calls };
 }
 
+const fakeYoutube = {
+  findFirstVideo: async (query) =>
+    query === 'nada'
+      ? null
+      : { id: 'abcdefghijk', title: `Video de ${query}`, channel: 'Canal', duration: '3:15', url: 'https://www.youtube.com/watch?v=abcdefghijk', thumbnail: Buffer.from('jpg') },
+};
+
+function fakeVideos() {
+  const cleaned = [];
+  return {
+    cleaned,
+    MAX_MINUTES: 20,
+    searchVideos: async (query) => (query === 'nada' ? [] : [{ id: 'x1', title: `Clip de ${query}`, duration: 195 }]),
+    downloadVideo: async (video) => ({ file: `/tmp/${video.id}.mp4`, cleanup: async () => cleaned.push(video.id) }),
+  };
+}
+
 // Arma el bot como main.js, pero con un WhatsApp falso que guarda lo que se envía.
 function setup(opts) {
   const imageSearch = fakeImages(opts);
+  const videoSearch = fakeVideos();
   const router = createRouter({
-    commands: createCommands({ imageSearch }),
+    commands: createCommands({ imageSearch, youtubeSearch: fakeYoutube, videoSearch }),
     prefix: '!',
     logger: silent,
     startedAt: 1000,
@@ -50,7 +68,7 @@ function setup(opts) {
       return `BOT${n++}`;
     });
   };
-  return { receive, sent, calls: imageSearch.calls };
+  return { receive, sent, calls: imageSearch.calls, cleaned: videoSearch.cleaned };
 }
 
 describe('bot de punta a punta', () => {
@@ -120,6 +138,8 @@ describe('bot de punta a punta', () => {
       assert.match(content.text, /^Comandos disponibles:/);
       assert.match(content.text, /!img \[1-5\] <búsqueda>/);
       assert.match(content.text, /!help/);
+      assert.match(content.text, /!youtube <búsqueda>/);
+      assert.match(content.text, /!video <búsqueda>/);
     }
   });
 
@@ -131,9 +151,46 @@ describe('bot de punta a punta', () => {
     assert.equal(sent.length, 2);
   });
 
+  test('!youtube, !yt y !YouTube envían el link con vista previa', async () => {
+    const { receive, sent } = setup();
+    await receive(msg('!youtube gatos', { id: 'A' }));
+    await receive(msg('!yt gatos', { id: 'B' }));
+    await receive(msg('!YouTube gatos', { id: 'C' }));
+    assert.equal(sent.length, 3);
+    for (const { content } of sent) {
+      assert.equal(content.text, '*Video de gatos*\nhttps://www.youtube.com/watch?v=abcdefghijk');
+      assert.equal(content.linkPreview['matched-text'], 'https://www.youtube.com/watch?v=abcdefghijk');
+      assert.equal(content.linkPreview.description, 'Canal · 3:15');
+      assert.ok(Buffer.isBuffer(content.linkPreview.jpegThumbnail));
+    }
+  });
+
+  test('!youtube sin resultados avisa', async () => {
+    const { receive, sent } = setup();
+    await receive(msg('!youtube nada'));
+    assert.deepEqual(sent.map((s) => s.content), [{ text: 'No encontré videos de YouTube para "nada"' }]);
+  });
+
+  test('!video avisa, envía el MP4 y borra el archivo temporal', async () => {
+    const { receive, sent, cleaned } = setup();
+    await receive(msg('!video gatos'));
+    assert.equal(sent.length, 2);
+    assert.equal(sent[0].content.text, 'Descargando "Clip de gatos (3:15)"...');
+    assert.deepEqual(sent[1].content.video, { url: '/tmp/x1.mp4' });
+    assert.equal(sent[1].content.mimetype, 'video/mp4');
+    assert.equal(sent[1].content.caption, 'Clip de gatos (3:15)');
+    assert.deepEqual(cleaned, ['x1']);
+  });
+
+  test('!video sin resultados avisa', async () => {
+    const { receive, sent } = setup();
+    await receive(msg('!video nada'));
+    assert.deepEqual(sent.map((s) => s.content), [{ text: 'No encontré videos para "nada"' }]);
+  });
+
   test('ignora mensajes de otras personas', async () => {
     const { receive, sent, calls } = setup();
-    for (const text of ['!img gato', '!help']) {
+    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato']) {
       await receive(msg(text, { jid: OTHER, fromMe: false }));
       await receive(msg(text, { jid: SELF_LID, fromMe: false }));
       await receive(msg(text, { jid: GROUP, fromMe: false }));
@@ -144,7 +201,7 @@ describe('bot de punta a punta', () => {
 
   test('ignora mis mensajes en otros chats y grupos', async () => {
     const { receive, sent, calls } = setup();
-    for (const text of ['!img gato', '!help']) {
+    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato']) {
       await receive(msg(text, { jid: OTHER }));
       await receive(msg(text, { jid: GROUP }));
     }

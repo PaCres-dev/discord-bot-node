@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { loadConfig } from './config.js';
 
 test('valores por defecto', () => {
-  assert.deepEqual({ ...loadConfig({}) }, { phoneNumber: '', authDir: './auth', logLevel: 'warn', prefix: '!' });
+  assert.deepEqual({ ...loadConfig({}) }, { phoneNumber: '', authDir: './auth', logLevel: 'warn', ffmpegPath: 'ffmpeg', prefix: '!' });
 });
 
 test('limpia el número y lee las variables', () => {

@@ -4,13 +4,15 @@ Bot mínimo vinculado a tu WhatsApp personal. En el chat "Mensaje a mí mismo":
 
 - `!img gato` → una imagen al azar del top 10 de DuckDuckGo.
 - `!img 3 gato` → 3 imágenes distintas (máximo 5).
+- `!youtube gatos` (o `!yt`) → link del primer video de YouTube, con vista previa.
+- `!video gatos` → descarga el primer video de Dailymotion (hasta 20 min, 720p) y te lo envía.
 - `!help` (o `!ayuda`) → lista de comandos.
 
 Solo responde a tus propios mensajes y solo en ese chat. Detalles en [SPEC.md](SPEC.md).
 
 ## Correrlo localmente
 
-Requiere Node 20 o superior.
+Requiere Node 20 o superior y `ffmpeg` instalado (para `!video`; el `Dockerfile` ya lo incluye).
 
 ```bash
 cd whatsapp-bot
@@ -26,7 +28,8 @@ y escribe el código. La sesión queda en `auth/` (no se sube al repo), así que
 basta con `npm start`.
 
 Variables opcionales: `AUTH_DIR` (carpeta de sesión, default `./auth`), `HTTPS_PROXY`
-(la conexión y las descargas pasan por ese proxy) y `LOG_LEVEL` (default `warn`).
+(la conexión y las descargas pasan por ese proxy), `LOG_LEVEL` (default `warn`) y
+`FFMPEG_PATH` (default `ffmpeg`).
 
 ## Tests
 

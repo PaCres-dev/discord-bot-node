@@ -130,6 +130,28 @@ describe('createRouter', () => {
     assert.equal(runs, 1);
   });
 
+  test('reply.video y reply.link arman el mensaje de WhatsApp', async () => {
+    const router = createRouter({
+      commands: [
+        command('media', async (ctx) => {
+          await ctx.reply.video('/tmp/v.mp4', 'Clip');
+          await ctx.reply.link({ url: 'https://youtu.be/x', title: 'T', description: 'D', thumbnail: Buffer.from('j') });
+          await ctx.reply.link({ url: 'https://youtu.be/y', title: 'T2', description: 'D2', thumbnail: null });
+        }),
+      ],
+      prefix: '!',
+      logger: silent,
+    });
+    const { sent, send } = collector();
+    await router.handle(incoming('!media'), send);
+    assert.deepEqual(sent[0], { video: { url: '/tmp/v.mp4' }, caption: 'Clip', mimetype: 'video/mp4' });
+    assert.deepEqual(sent[1], {
+      text: '*T*\nhttps://youtu.be/x',
+      linkPreview: { 'canonical-url': 'https://youtu.be/x', 'matched-text': 'https://youtu.be/x', title: 'T', description: 'D', jpegThumbnail: Buffer.from('j') },
+    });
+    assert.equal('jpegThumbnail' in sent[2].linkPreview, false);
+  });
+
   test('le pasa a los comandos la lista de comandos y el prefijo', async () => {
     let ctxSeen;
     const commands = [command('info', async (ctx) => (ctxSeen = ctx))];

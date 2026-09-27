@@ -3,7 +3,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createCommands } from './index.js';
 
-const commands = createCommands({ imageSearch: { getRandomImages: async () => [] } });
+const commands = createCommands({
+  imageSearch: { getRandomImages: async () => [] },
+  youtubeSearch: { findFirstVideo: async () => null },
+  videoSearch: { searchVideos: async () => [], downloadVideo: async () => null, MAX_MINUTES: 20 },
+});
 
 test('hay al menos un comando registrado', () => {
   assert.ok(commands.length > 0);
