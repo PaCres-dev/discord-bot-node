@@ -123,6 +123,14 @@ describe('bot de punta a punta', () => {
     }
   });
 
+  test('el comando no distingue mayúsculas (!IMG, !Help)', async () => {
+    const { receive, sent, calls } = setup();
+    await receive(msg('!IMG Gato', { id: 'A' }));
+    await receive(msg('!Help', { id: 'B' }));
+    assert.deepEqual(calls, [{ query: 'Gato', count: 1 }]);
+    assert.equal(sent.length, 2);
+  });
+
   test('ignora mensajes de otras personas', async () => {
     const { receive, sent, calls } = setup();
     for (const text of ['!img gato', '!help']) {

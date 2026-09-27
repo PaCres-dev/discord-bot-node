@@ -29,6 +29,10 @@ describe('parseCommand', () => {
     assert.deepEqual(parseCommand('!help', '!'), { name: 'help', args: '' });
     assert.deepEqual(parseCommand('!img   gato  ', '!'), { name: 'img', args: 'gato' });
   });
+  test('el nombre no distingue mayúsculas, los argumentos sí se conservan', () => {
+    assert.deepEqual(parseCommand('!YouTube Gatos Graciosos', '!'), { name: 'youtube', args: 'Gatos Graciosos' });
+    assert.deepEqual(parseCommand('!IMG 2 Messi', '!'), { name: 'img', args: '2 Messi' });
+  });
   test('no es comando si no empieza con el prefijo o está vacío', () => {
     assert.equal(parseCommand('img gato', '!'), null);
     assert.equal(parseCommand('!', '!'), null);

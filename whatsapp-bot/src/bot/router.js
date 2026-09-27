@@ -5,12 +5,13 @@ import { isAllowed } from './access.js';
 // Ignora mensajes anteriores al arranque (historial que WhatsApp reenvía al conectar).
 const HISTORY_GRACE_SECONDS = 5;
 
-// "!img 3 gato" → { name: 'img', args: '3 gato' }. null si no es un comando.
+// "!IMG 3 Gato" → { name: 'img', args: '3 Gato' }. null si no es un comando.
+// El nombre no distingue mayúsculas (!YouTube = !youtube); los argumentos quedan tal cual.
 export function parseCommand(text, prefix) {
   if (!text.startsWith(prefix)) return null;
   const match = text.slice(prefix.length).match(/^(\S+)(?:\s+([\s\S]*))?$/);
   if (!match) return null;
-  return { name: match[1], args: (match[2] ?? '').trim() };
+  return { name: match[1].toLowerCase(), args: (match[2] ?? '').trim() };
 }
 
 function buildRegistry(commands) {

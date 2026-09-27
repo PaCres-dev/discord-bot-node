@@ -35,6 +35,7 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 - Varios comandos seguidos → se atienden de a uno, en orden, sin mezclar respuestas.
 - Sin resultados, o 5 descargas fallidas → responde `No encontré imágenes para "<texto>"`.
 - Cualquier otro mensaje, o un comando que no existe (`!nada`) → lo ignora.
+- El nombre del comando no distingue mayúsculas: `!IMG gato` = `!img gato`.
 - Mensajes de otras personas, o míos en otros chats o grupos → los ignora, sea cual sea el comando.
 - Mensajes anteriores al arranque (historial que WhatsApp reenvía al conectar) → los ignora.
 - No entra en bucles: ignora los mensajes que envió el propio bot.
