@@ -26,6 +26,18 @@ basta con `npm start`.
 Variables opcionales: `AUTH_DIR` (carpeta de sesión, default `./auth`), `HTTPS_PROXY`
 (la conexión y las descargas pasan por ese proxy) y `LOG_LEVEL` (default `warn`).
 
+## Tests
+
+```bash
+npm test
+```
+
+No usan la red ni WhatsApp: simulan DuckDuckGo y el socket. Cubren el formato del comando
+(`!img`, cantidad 1–5), que solo responda a tus mensajes en "Mensaje a mí mismo"
+(`@lid` y `@s.whatsapp.net`), que no entre en bucles, los mensajes de error y la
+búsqueda/descarga (SafeSearch desactivado, top 10, sin repetidas, máx. 5 fallos).
+Córrelos antes de cada cambio. `npm run test:search -- gato` prueba contra DuckDuckGo real.
+
 ## Desplegar en Railway (24/7)
 
 1. En Railway: **New Project → Deploy from GitHub repo** y elige este repo.

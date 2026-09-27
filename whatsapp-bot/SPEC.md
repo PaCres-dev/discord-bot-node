@@ -43,8 +43,10 @@ whatsapp-bot/
 ├── Dockerfile       # para desplegar en la nube
 ├── .gitignore       # ignora auth/ y node_modules/
 └── src/
-    ├── index.js     # conexión a WhatsApp, pairing code, manejo de mensajes
+    ├── index.js     # conexión a WhatsApp, pairing code
+    ├── commands.js  # lógica del comando !img
     └── images.js    # búsqueda en DuckDuckGo y descarga de la imagen
+test/                # npm test (node:test, sin red)
 ```
 
 La sesión de WhatsApp se guarda en `whatsapp-bot/auth/` (gitignored), así que reiniciar el bot no obliga a re-vincular.

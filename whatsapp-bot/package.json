@@ -10,7 +10,8 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test:search": "node src/test-search.js"
+    "test:search": "node src/test-search.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^7.0.0-rc14",
