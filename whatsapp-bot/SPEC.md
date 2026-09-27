@@ -50,7 +50,7 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 
 ```
 whatsapp-bot/
-├── SPEC.md, README.md
+├── SPEC.md, README.md, HANDOFF.md
 ├── package.json              # dependencias propias (Node >= 20, ESM)
 ├── Dockerfile, .dockerignore
 ├── .gitignore                # ignora auth/ y node_modules/

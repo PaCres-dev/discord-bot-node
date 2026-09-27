@@ -10,6 +10,7 @@ Bot mínimo vinculado a tu WhatsApp personal. En el chat "Mensaje a mí mismo":
 - `!help` (o `!ayuda`) → lista de comandos.
 
 Solo responde a tus propios mensajes y solo en ese chat. Detalles en [SPEC.md](SPEC.md).
+Para volver a correrlo en una sesión nueva de Claude Code: [HANDOFF.md](HANDOFF.md).
 
 ## Correrlo localmente
 
