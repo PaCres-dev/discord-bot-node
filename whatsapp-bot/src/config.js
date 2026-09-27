@@ -10,6 +10,13 @@ export function loadConfig(env = process.env) {
     authDir: env.AUTH_DIR || './auth',
     logLevel: env.LOG_LEVEL || 'warn',
     ffmpegPath: env.FFMPEG_PATH || 'ffmpeg',
+    // Cuenta de X para !twitter. Solo se usa para el primer inicio de sesión; después
+    // alcanza con la sesión guardada en authDir. Nunca se muestra en los registros.
+    x: Object.freeze({
+      username: env.X_USERNAME || '',
+      password: env.X_PASSWORD || '',
+      email: env.X_EMAIL || '',
+    }),
     // Fijo en el código a propósito: todos los comandos empiezan con "!".
     prefix: '!',
   });

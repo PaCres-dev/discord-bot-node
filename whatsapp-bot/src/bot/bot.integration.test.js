@@ -48,12 +48,21 @@ function fakeVideos() {
   };
 }
 
+const fakeXFeed = {
+  isConfigured: async () => true,
+  getNewTweets: async () => [
+    { id: 't1', ids: ['t1'], author: { name: 'Ana', username: 'ana' }, text: 'Hola', url: 'https://x.com/ana/status/t1', photos: [], retweetedBy: null, replyTo: null },
+  ],
+  markSent: async () => {},
+  downloadPhoto: async () => Buffer.from('jpg'),
+};
+
 // Arma el bot como main.js, pero con un WhatsApp falso que guarda lo que se envía.
 function setup(opts) {
   const imageSearch = fakeImages(opts);
   const videoSearch = fakeVideos();
   const router = createRouter({
-    commands: createCommands({ imageSearch, youtubeSearch: fakeYoutube, videoSearch }),
+    commands: createCommands({ imageSearch, youtubeSearch: fakeYoutube, videoSearch, xFeed: fakeXFeed }),
     prefix: '!',
     logger: silent,
     startedAt: 1000,
@@ -140,6 +149,7 @@ describe('bot de punta a punta', () => {
       assert.match(content.text, /!help/);
       assert.match(content.text, /!youtube <búsqueda>/);
       assert.match(content.text, /!video <búsqueda>/);
+      assert.match(content.text, /!twitter/);
     }
   });
 
@@ -188,9 +198,19 @@ describe('bot de punta a punta', () => {
     assert.deepEqual(sent.map((s) => s.content), [{ text: 'No encontré videos para "nada"' }]);
   });
 
+  test('!twitter y !x envían los tweets del feed', async () => {
+    const { receive, sent } = setup();
+    await receive(msg('!twitter', { id: 'A' }));
+    await receive(msg('!X', { id: 'B' }));
+    assert.deepEqual(sent.map((s) => s.content.text), [
+      '*Ana* (@ana)\nHola\nhttps://x.com/ana/status/t1',
+      '*Ana* (@ana)\nHola\nhttps://x.com/ana/status/t1',
+    ]);
+  });
+
   test('ignora mensajes de otras personas', async () => {
     const { receive, sent, calls } = setup();
-    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato']) {
+    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato', '!twitter']) {
       await receive(msg(text, { jid: OTHER, fromMe: false }));
       await receive(msg(text, { jid: SELF_LID, fromMe: false }));
       await receive(msg(text, { jid: GROUP, fromMe: false }));
@@ -201,7 +221,7 @@ describe('bot de punta a punta', () => {
 
   test('ignora mis mensajes en otros chats y grupos', async () => {
     const { receive, sent, calls } = setup();
-    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato']) {
+    for (const text of ['!img gato', '!help', '!youtube gato', '!video gato', '!twitter']) {
       await receive(msg(text, { jid: OTHER }));
       await receive(msg(text, { jid: GROUP }));
     }

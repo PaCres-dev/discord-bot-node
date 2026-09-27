@@ -7,6 +7,7 @@ import { createCommands } from './commands/index.js';
 import * as imageSearch from './image-search/duckduckgo.js';
 import * as youtubeSearch from './youtube-search/youtube.js';
 import * as dailymotion from './video-search/dailymotion.js';
+import { createTransactionIdGenerator, createXFeed } from './x-feed/x.js';
 import { startWhatsApp } from './whatsapp/connection.js';
 
 const config = loadConfig();
@@ -26,6 +27,12 @@ const router = createRouter({
       ...dailymotion,
       downloadVideo: (video) => dailymotion.downloadVideo(video, { ffmpegPath: config.ffmpegPath }),
     },
+    xFeed: createXFeed({
+      ...config.x,
+      authDir: config.authDir,
+      transactionId: createTransactionIdGenerator(),
+      logger,
+    }),
   }),
   prefix: config.prefix,
   logger,

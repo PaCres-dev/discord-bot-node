@@ -18,8 +18,9 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 | Descarga | A través del proxy de imágenes de DuckDuckGo (`external-content.duckduckgo.com`), así no hay que acceder a dominios arbitrarios |
 | SafeSearch | Desactivado |
 | Selección | Una imagen al azar del top 10; si falla la descarga, se prueba otra (máx. 5 intentos) |
-| Comandos | `!img [1-5] <texto>`, `!youtube` / `!yt <texto>`, `!video <texto>` y `!help` / `!ayuda` |
+| Comandos | `!img [1-5] <texto>`, `!youtube` / `!yt <texto>`, `!video <texto>`, `!twitter` / `!x` y `!help` / `!ayuda` |
 | YouTube | Solo link con vista previa: YouTube bloquea las descargas desde servidores (probado: yt-dlp, clientes alternativos, tokens PO, Invidious, Piped, cobalt, ssyoutube, loader.to) |
+| X (Twitter) | `!twitter` lee el feed "Para ti" iniciando sesión como el usuario (la API oficial no da ese feed y es paga). **Estado: implementado pero sin probar en vivo**, porque todavía no hay una cuenta para usar. Se activa con `X_USERNAME`, `X_PASSWORD` y `X_EMAIL`; sin ellas responde que no está configurado |
 | Videos | `!video` busca y descarga de Dailymotion (sin API key): hasta 20 min, hasta 720p y ~90 MB. ffmpeg une los fragmentos localmente |
 | Permisos | Solo mis propios mensajes (`fromMe`) y solo en el chat "Mensaje a mí mismo" (`@s.whatsapp.net` o `@lid`); ignora el resto. Es una política única en `bot/access.js` que aplica a **todos** los comandos |
 | Arquitectura | Screaming architecture: carpetas por funcionalidad (`commands/img`, `commands/help`), un router común y WhatsApp aislado en `whatsapp/` |
@@ -34,6 +35,7 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 - `!img` sin texto → responde `Uso: !img [1-5] <búsqueda>`.
 - `!youtube gatos` (o `!yt`, `!YouTube`) → envía el link del primer resultado de YouTube con vista previa (título, canal · duración y miniatura).
 - `!video gatos` → responde `Descargando "<título> (m:ss)"...`, busca en Dailymotion el primer video de hasta 20 min, lo descarga (la mejor calidad hasta 720p que pese menos de ~90 MB) y lo envía como video con el título de caption. Si falla, responde `No pude descargar "<título>"`; sin resultados, `No encontré videos para "<texto>"`. El archivo temporal se borra siempre.
+- `!twitter` (o `!x`) → envía los 10 tweets más recientes del feed "Para ti" que todavía no se hayan enviado, uno por mensaje: `🔁 @quien retuiteó` (si es retweet), `*Nombre* (@usuario) · ↩️ respuesta a @otro` (si es respuesta), el texto y el link. Si tiene fotos, la primera lleva el texto y las demás van solas. Excluye publicidad; incluye retweets y respuestas. Si en la primera página no hay 10 nuevos, sigue leyendo hasta 5 páginas. Un tweet se marca como enviado recién después de enviarlo. Sin configurar → `!twitter todavía no está configurado: faltan X_USERNAME, X_PASSWORD y X_EMAIL.`; si X falla → `No pude leer tu feed de X...`; sin nuevos → `No hay tweets nuevos en tu feed.`
 - `!help` o `!ayuda` → lista los comandos disponibles con su uso (se genera solo a partir del registro).
 - Si un comando falla inesperadamente → responde `Hubo un error con !<comando>` y el bot sigue funcionando.
 - Varios comandos seguidos → se atienden de a uno, en orden, sin mezclar respuestas.
@@ -63,6 +65,7 @@ whatsapp-bot/
     │   ├── img/              # !img: img.command.js, parse-args.js, img.test.js
     │   ├── youtube/          # !youtube / !yt: link con vista previa
     │   ├── video/            # !video: descarga y envía un video
+    │   ├── twitter/          # !twitter / !x: feed "Para ti" de X
     │   └── help/             # !help: help.command.js, help.test.js
     ├── bot/                  # motor común a todos los comandos
     │   ├── router.js         # "!nombre args" → comando; anti-bucle, historial, errores, orden
@@ -73,6 +76,11 @@ whatsapp-bot/
     │   └── youtube.js        # búsqueda en YouTube (sin API key) y miniatura
     ├── video-search/
     │   └── dailymotion.js    # búsqueda y descarga HLS de Dailymotion → MP4 con ffmpeg
+    ├── x-feed/               # todo lo de X, para ajustarlo en un solo lugar
+    │   ├── x.js              # sesión, páginas, filtros, memoria de enviados, fotos
+    │   ├── home-timeline.js  # consulta HomeTimeline (queryId/features auto-actualizados) y lectura de la respuesta
+    │   ├── session.js        # inicio de sesión (librería @the-convocation/twitter-scraper) y sesión guardada
+    │   └── seen-store.js     # IDs de tweets ya enviados
     └── whatsapp/             # todo lo de Baileys queda acá
         ├── connection.js     # sesión, pairing code, reconexión
         └── incoming.js       # mensaje de Baileys → { id, chatId, fromMe, isSelfChat, text, timestamp }
@@ -114,6 +122,7 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 - La política de acceso vive **solo** en `bot/access.js` y el router la aplica antes de ejecutar cualquier comando. Los comandos no deciden quién los usa: el test de contrato falla si un comando define `access`.
 - Habilitar un comando para otras personas o chats sería una decisión explícita que primero se actualiza en este spec y en sus tests.
 - Los servicios que descargan archivos solo aceptan sus propios dominios por HTTPS (ej. `video-search/dailymotion.js`: `dailymotion.com` y `dmcdn.net`), y los archivos temporales se borran siempre después de enviarlos.
+- **X:** la contraseña solo se usa para el primer inicio de sesión y nunca se escribe en disco ni en los registros. Se guarda únicamente la sesión (`auth_token` y `ct0`) en `AUTH_DIR/x-session.json` con permisos 600, junto con `x-seen.json` (IDs enviados, máx. 5000). La consulta del feed se actualiza desde un listado público (`fa0311/TwitterInternalAPIDocument`) solo si pasa una validación estricta (queryId simple y features booleanos); si no, se usa la de respaldo. Las fotos solo se bajan de `pbs.twimg.com` por HTTPS.
 - Los programas externos (ffmpeg) se ejecutan con una lista de argumentos, nunca a través de una shell.
 - `config.js` es el único que lee la configuración, salvo `proxy.js` con las variables estándar de proxy. El número de teléfono y la sesión nunca se commitean.
 
@@ -131,6 +140,7 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 | `AUTH_DIR` | No (default `./auth`) | Dónde se guarda la sesión; en la nube apunta a un volumen persistente |
 | `HTTPS_PROXY` | No | Si existe, la conexión y las descargas pasan por ese proxy (necesario en el entorno de Claude Code) |
 | `LOG_LEVEL` | No (default `warn`) | Nivel de logs de Baileys |
+| `X_USERNAME`, `X_PASSWORD`, `X_EMAIL` | Solo para `!twitter`, la primera vez | Cuenta de X. Después alcanza con la sesión guardada en `AUTH_DIR` |
 | `FFMPEG_PATH` | No (default `ffmpeg`) | Ruta a ffmpeg, necesario para `!video`. El `Dockerfile` ya lo instala |
 
 ## Red necesaria
@@ -140,6 +150,7 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 - `external-content.duckduckgo.com`: descarga de imágenes
 - `www.youtube.com`, `i.ytimg.com`: búsqueda y miniatura para `!youtube`
 - `api.dailymotion.com`, `www.dailymotion.com`, `cdndirector.dailymotion.com`, `*.dmcdn.net`: búsqueda y descarga para `!video`
+- `x.com`, `api.x.com`, `pbs.twimg.com`, `raw.githubusercontent.com`: inicio de sesión, feed y fotos para `!twitter`, y actualización de la consulta del feed
 
 ## Plan de desarrollo
 
@@ -155,6 +166,7 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 10. **Arquitectura por comandos:** router, política de acceso única, registro de comandos, `!help`, tests de contrato y CI en GitHub Actions.
 11. **Nombres de comando sin distinguir mayúsculas.**
 12. **`!youtube` (link con vista previa) y `!video` (descarga desde Dailymotion).**
+13. **`!twitter`:** implementado y testeado sin red; falta la prueba real con una cuenta.
 
 ## Riesgos conocidos
 
@@ -162,4 +174,7 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 - DuckDuckGo puede cambiar su endpoint interno. Todo está aislado en `image-search/duckduckgo.js` para arreglarlo fácil.
 - YouTube y Dailymotion pueden cambiar su HTML o su API. Cada uno está aislado en su archivo (`youtube-search/`, `video-search/`).
 - `!video` tarda unos segundos por minuto de video, y mientras tanto los demás comandos esperan su turno (el router atiende de a uno).
+- `!twitter` va contra las reglas de X: la cuenta usada puede ser bloqueada o suspendida. Se recomienda una cuenta secundaria.
+- X puede pedir verificar el inicio de sesión (código por email o captcha) al entrar desde un servidor; sin poder recibir códigos, el inicio de sesión fallaría.
+- X cambia seguido su API interna. Lo más probable es que la primera prueba real requiera ajustes, todos dentro de `x-feed/`. El generador de `x-client-transaction-id` hoy no funciona con la web nueva de X; el pedido se envía sin ese encabezado.
 - Aquí el bot vive mientras esta sesión esté activa; para 24/7 hay que desplegarlo en la nube (paso 6).

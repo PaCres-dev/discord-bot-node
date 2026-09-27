@@ -6,6 +6,7 @@ Bot mínimo vinculado a tu WhatsApp personal. En el chat "Mensaje a mí mismo":
 - `!img 3 gato` → 3 imágenes distintas (máximo 5).
 - `!youtube gatos` (o `!yt`) → link del primer video de YouTube, con vista previa.
 - `!video gatos` → descarga el primer video de Dailymotion (hasta 20 min, 720p) y te lo envía.
+- `!twitter` (o `!x`) → 10 tweets nuevos de tu feed "Para ti" de X (necesita configurar la cuenta, ver abajo).
 - `!help` (o `!ayuda`) → lista de comandos.
 
 Solo responde a tus propios mensajes y solo en ese chat. Detalles en [SPEC.md](SPEC.md).
@@ -30,6 +31,19 @@ basta con `npm start`.
 Variables opcionales: `AUTH_DIR` (carpeta de sesión, default `./auth`), `HTTPS_PROXY`
 (la conexión y las descargas pasan por ese proxy), `LOG_LEVEL` (default `warn`) y
 `FFMPEG_PATH` (default `ffmpeg`).
+
+## Activar `!twitter`
+
+Necesita una cuenta de X (recomendado: secundaria, porque X puede bloquearla por automatización):
+
+```bash
+X_USERNAME=usuario X_PASSWORD=contraseña X_EMAIL=email@de.la.cuenta npm start
+```
+
+La contraseña solo se usa para el primer inicio de sesión; después queda guardada la sesión en
+`auth/x-session.json` (fuera del repo) y ya no hace falta. Si X pide un código de verificación,
+el inicio de sesión falla. Todavía no se probó con una cuenta real: es probable que la primera
+vez haya que ajustar algo en `src/x-feed/`.
 
 ## Tests
 

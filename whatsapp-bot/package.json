@@ -14,9 +14,12 @@
     "test:search": "node scripts/search-images.js"
   },
   "dependencies": {
+    "@the-convocation/twitter-scraper": "^0.22.3",
     "@whiskeysockets/baileys": "^7.0.0-rc14",
     "https-proxy-agent": "^9.1.0",
+    "linkedom": "^0.18.13",
     "pino": "^10.3.1",
-    "undici": "^7.30.0"
+    "undici": "^7.30.0",
+    "x-client-transaction-id": "^0.2.3"
   }
 }
