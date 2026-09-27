@@ -1,6 +1,6 @@
 # Bot de WhatsApp
 
-Bot mínimo vinculado a tu WhatsApp personal. En el chat "Mensaje a mí mismo":
+Bot personal vinculado a tu WhatsApp. En el chat "Mensaje a mí mismo":
 
 - `!img gato` → una imagen al azar del top 10 de DuckDuckGo.
 - `!img 3 gato` → 3 imágenes distintas (máximo 5).
@@ -17,7 +17,7 @@ Para volver a correrlo en una sesión nueva de Claude Code: [HANDOFF.md](HANDOFF
 
 ## Correrlo localmente
 
-Requiere Node 20 o superior y `ffmpeg` instalado (para `!video`; el `Dockerfile` ya lo incluye).
+Requiere Node 20 o superior, `ffmpeg` (para `!video`, `!youtube` y `!audio`) y `yt-dlp` (`pip install "yt-dlp[default]"`, para `!youtube` y `!audio`). El `Dockerfile` ya incluye ambos.
 
 ```bash
 cd whatsapp-bot
@@ -33,8 +33,12 @@ y escribe el código. La sesión queda en `auth/` (no se sube al repo), así que
 basta con `npm start`.
 
 Variables opcionales: `AUTH_DIR` (carpeta de sesión, default `./auth`), `HTTPS_PROXY`
-(la conexión y las descargas pasan por ese proxy), `LOG_LEVEL` (default `warn`) y
-`FFMPEG_PATH` (default `ffmpeg`).
+(la conexión y las descargas pasan por ese proxy), `LOG_LEVEL` (default `warn`),
+`FFMPEG_PATH` (default `ffmpeg`), `YTDLP_PATH` (default `yt-dlp`) y, para `!twitter`,
+`X_USERNAME`, `X_PASSWORD` y `X_EMAIL`. Tabla completa en [SPEC.md](SPEC.md#configuración-variables-de-entorno).
+
+En `auth/` (fuera del repo) quedan la sesión de WhatsApp, la de YouTube (`youtube-cookies.txt`),
+la de X si se activa, y lo ya enviado por `!noticias` y `!twitter` para no repetir.
 
 ## Activar la descarga de YouTube (`!ytcookies`)
 
@@ -68,9 +72,11 @@ vez haya que ajustar algo en `src/x-feed/`.
 npm test
 ```
 
-No usan la red ni WhatsApp: simulan DuckDuckGo y el socket. Cubren cada comando, el router
-(solo tus mensajes en "Mensaje a mí mismo", `@lid` y `@s.whatsapp.net`, anti-bucle,
-historial, errores aislados, orden), la configuración y la búsqueda/descarga.
+No usan la red ni WhatsApp: simulan WhatsApp, DuckDuckGo, YouTube, yt-dlp, ffmpeg, Dailymotion,
+Google News y X. Cubren cada comando, el router (solo tus mensajes en "Mensaje a mí mismo",
+`@lid` y `@s.whatsapp.net`, anti-bucle, historial, errores aislados, orden), la configuración,
+las búsquedas, descargas, partes de 5 minutos y los controles de seguridad (dominios permitidos,
+archivos temporales, cookies y sesiones).
 GitHub Actions los corre en cada push que toque `whatsapp-bot/`.
 `npm run test:search -- gato` prueba contra DuckDuckGo real.
 
@@ -93,5 +99,6 @@ los comandos. Detalles y reglas en [SPEC.md](SPEC.md#arquitectura).
 6. Una vez conectado puedes borrar `PHONE_NUMBER`; la sesión vive en el volumen.
 
 Si cierras la sesión desde el teléfono, borra el contenido del volumen y repite el paso 5.
+Para `!youtube` y `!audio`, manda una vez `!ytcookies` (la sesión de YouTube también queda en el volumen).
 
 > No corras el bot en dos lugares a la vez con la misma sesión.

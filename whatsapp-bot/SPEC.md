@@ -1,8 +1,8 @@
-# Bot de WhatsApp — descargador de imágenes
+# Bot de WhatsApp — asistente personal
 
 ## Objetivo
 
-Un bot mínimo, vinculado a mi WhatsApp personal. Cuando le escribo `!img <texto>`, busca imágenes en internet y me envía una.
+Un bot personal vinculado a mi WhatsApp. Desde el chat "Mensaje a mí mismo" le pido imágenes (`!img`), videos o audios de YouTube (`!youtube`, `!audio`), videos de Dailymotion (`!video`), noticias con resumen (`!noticias`) y, cuando haya una cuenta, mi feed de X (`!twitter`).
 Está organizado por comandos para poder sumar funcionalidades nuevas sin tocar ni romper las existentes.
 Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 
@@ -24,7 +24,7 @@ Vive en este repo junto al bot de Discord y es totalmente independiente de él.
 | Noticias | `!noticias` usa el RSS de Google News (sin API key), edición en inglés (EE.UU.), última semana, orden de relevancia de Google. Resumen = descripción publicada por la nota; el link de Google se decodifica con un servicio interno no oficial (si falla: título, medio, fecha y link de Google) |
 | Videos | `!video` busca y descarga de Dailymotion (sin API key): hasta 20 min, hasta 720p y ~90 MB. ffmpeg une los fragmentos localmente |
 | Permisos | Solo mis propios mensajes (`fromMe`) y solo en el chat "Mensaje a mí mismo" (`@s.whatsapp.net` o `@lid`); ignora el resto. Es una política única en `bot/access.js` que aplica a **todos** los comandos |
-| Arquitectura | Screaming architecture: carpetas por funcionalidad (`commands/img`, `commands/help`), un router común y WhatsApp aislado en `whatsapp/` |
+| Arquitectura | Screaming architecture: una carpeta por comando en `commands/`, servicios externos aislados (`image-search/`, `youtube-search/`, `youtube-download/`, `video-search/`, `news/`, `x-feed/`), un router común y WhatsApp aislado en `whatsapp/` |
 | Estructura | El bot de Discord sigue en la raíz, sin cambios. El de WhatsApp va en `/whatsapp-bot` con su propio `package.json` |
 | Ejecución hoy | Dentro de la sesión de Claude Code; funciona mientras la sesión esté activa |
 | Nube (después) | `Dockerfile` y README para desplegar en Railway, Render o un VPS |
@@ -155,8 +155,8 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 | `HTTPS_PROXY` | No | Si existe, la conexión y las descargas pasan por ese proxy (necesario en el entorno de Claude Code) |
 | `LOG_LEVEL` | No (default `warn`) | Nivel de logs de Baileys |
 | `X_USERNAME`, `X_PASSWORD`, `X_EMAIL` | Solo para `!twitter`, la primera vez | Cuenta de X. Después alcanza con la sesión guardada en `AUTH_DIR` |
-| `YTDLP_PATH` | No (default `yt-dlp`) | Ruta a yt-dlp para `!youtube`. El `Dockerfile` ya lo instala (`yt-dlp[default]`) |
-| `FFMPEG_PATH` | No (default `ffmpeg`) | Ruta a ffmpeg, necesario para `!video`. El `Dockerfile` ya lo instala |
+| `YTDLP_PATH` | No (default `yt-dlp`) | Ruta a yt-dlp para `!youtube` y `!audio`. El `Dockerfile` ya lo instala (`yt-dlp[default]`) |
+| `FFMPEG_PATH` | No (default `ffmpeg`) | ffmpeg, necesario para `!video`, `!youtube` y `!audio`. Si es solo el nombre, se busca en el `PATH`. El `Dockerfile` ya lo instala |
 
 ## Red necesaria
 
@@ -171,8 +171,8 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 ## Plan de desarrollo
 
 1. **Esqueleto:** carpeta `whatsapp-bot/`, `package.json`, `.gitignore` y la instalación de dependencias (`@whiskeysockets/baileys`, `pino`, `https-proxy-agent`, `undici`).
-2. **Búsqueda (`images.js`):** obtener el token `vqd` de DuckDuckGo, llamar a `i.js` con SafeSearch desactivado, tomar el top 10, elegir al azar y descargar vía `external-content`, reintentando hasta 5 veces. Lo pruebo aislado con un script (`npm run test:search -- gato`).
-3. **Conexión (`index.js`):** `useMultiFileAuthState`, soporte de proxy, pairing code impreso en consola si la sesión no existe, y reconexión automática salvo al cerrar sesión.
+2. **Búsqueda (hoy `image-search/duckduckgo.js`):** obtener el token `vqd` de DuckDuckGo, llamar a `i.js` con SafeSearch desactivado, tomar el top 10, elegir al azar y descargar vía `external-content`, reintentando hasta 5 veces. Lo pruebo aislado con un script (`npm run test:search -- gato`).
+3. **Conexión (hoy `whatsapp/connection.js`):** `useMultiFileAuthState`, soporte de proxy, pairing code impreso en consola si la sesión no existe, y reconexión automática salvo al cerrar sesión.
 4. **Comando:** escuchar `messages.upsert`, filtrar `fromMe` y el prefijo `!img`, buscar y enviar la imagen con `sendMessage({ image, caption })`.
 5. **Prueba real:** verificar la red, correr el bot con tu número, pasarte el código de 8 dígitos, que lo vincules y lo pruebes con `!img gato` desde "Mensaje a mí mismo".
 6. **Nube:** `Dockerfile` y README con los pasos de deploy (Railway con volumen en `/app/auth`).
@@ -181,22 +181,25 @@ No hace falta tocar `bot/` ni `whatsapp/`. Si el comando usa un servicio externo
 9. **Tests** sin red con `node:test`.
 10. **Arquitectura por comandos:** router, política de acceso única, registro de comandos, `!help`, tests de contrato y CI en GitHub Actions.
 11. **Nombres de comando sin distinguir mayúsculas.**
-12. **`!youtube` (link con vista previa) y `!video` (descarga desde Dailymotion).**
+12. **`!youtube` (primero link con vista previa) y `!video` (descarga desde Dailymotion).**
 13. **`!twitter`:** implementado y testeado sin red; falta la prueba real con una cuenta.
-15. **Tokens PO (probado, no activado):** se probó `bgutil-ytdlp-pot-provider` 2.0.0 como servicio aislado (`scripts/pot-service/`: usuario de sistema `potsvc` sin acceso a `auth/` ni a `/root`, archivos de solo lectura, entorno vacío, sin nuevos privilegios, solo en `127.0.0.1`, salida por `youtube-download/allowlist-proxy.js`). El aislamiento se verificó incluso con el módulo nativo `canvas` cargado, y no hubo conexiones fuera de YouTube/Google. Los tokens se generan, pero YouTube igual responde 403 en videos con licencia desde la IP de este servidor, así que no se activó y se desinstaló. Los scripts quedan para reintentar en otro host (`install.sh`, `run.sh`, `uninstall.sh`).
-18. **`!noticias`:** Google News (inglés, última semana, relevancia), secciones que acotan la búsqueda, resumen de la nota y sin repetir. Probado en vivo: `tech rust` trajo 3 notas de InfoQ, SecurityWeek y The Register con resumen en 5 s.
-17. **`!audio`:** el mismo comando que `!youtube` en modo audio (m4a), con las mismas partes de 5 minutos (máx. 6). Probado en vivo: 3 partes de 5:00 y 4,9 MB cada una en 12 s. Se corrigió además que `--ffmpeg-location ffmpeg` (sin ruta) impedía unir audio y video.
-16. **YouTube en partes:** `!youtube [1-6]` envía hasta 6 partes de 5 minutos (máx. 30 min). Videos de hasta 90 min se bajan enteros y se recortan localmente con ffmpeg (1 h ≈ 46 s); más largos, se baja solo el tramo pedido (mucho más lento, pero sin ocupar tanto disco). Probado en vivo: 6:09 en 2 partes y 15 min de un video de 1 h en 3 partes de ~35 MB.
 14. **Descarga de YouTube:** `!ytcookies` importa la sesión desde `chrome://net-export` (sin instalar apps) y `!youtube` descarga con yt-dlp. Probado en vivo: un video de 6 min en 720p H.264 (47 MB) en 9 s.
+15. **Tokens PO (probado, no activado):** se probó `bgutil-ytdlp-pot-provider` 2.0.0 como servicio aislado (`scripts/pot-service/`: usuario de sistema `potsvc` sin acceso a `auth/` ni a `/root`, archivos de solo lectura, entorno vacío, sin nuevos privilegios, solo en `127.0.0.1`, salida por `youtube-download/allowlist-proxy.js`). El aislamiento se verificó incluso con el módulo nativo `canvas` cargado, y no hubo conexiones fuera de YouTube/Google. Los tokens se generan, pero YouTube igual responde 403 en videos con licencia desde la IP de este servidor, así que no se activó y se desinstaló. Los scripts quedan para reintentar en otro host (`install.sh`, `run.sh`, `uninstall.sh`).
+16. **YouTube en partes:** `!youtube [1-6]` envía hasta 6 partes de 5 minutos (máx. 30 min). Videos de hasta 90 min se bajan enteros y se recortan localmente con ffmpeg (1 h ≈ 46 s); más largos, se baja solo el tramo pedido (mucho más lento, pero sin ocupar tanto disco). Probado en vivo: 6:09 en 2 partes y 15 min de un video de 1 h en 3 partes de ~35 MB.
+17. **`!audio`:** el mismo comando que `!youtube` en modo audio (m4a), con las mismas partes de 5 minutos (máx. 6). Probado en vivo: 3 partes de 5:00 y 4,9 MB cada una en 12 s. Se corrigió además que `--ffmpeg-location ffmpeg` (sin ruta) impedía unir audio y video.
+18. **`!noticias`:** Google News (inglés, última semana, relevancia), secciones que acotan la búsqueda, resumen de la nota y sin repetir. Probado en vivo: `tech rust` trajo 3 notas de InfoQ, SecurityWeek y The Register con resumen en 5 s.
+19. **Documentación y cierre:** SPEC, README y HANDOFF al día; servidor apagado.
 
 ## Riesgos conocidos
 
 - Baileys no es oficial. Con uso personal y bajo volumen el riesgo de bloqueo es bajo, pero existe.
 - DuckDuckGo puede cambiar su endpoint interno. Todo está aislado en `image-search/duckduckgo.js` para arreglarlo fácil.
-- YouTube y Dailymotion pueden cambiar su HTML o su API. Cada uno está aislado en su archivo (`youtube-search/`, `video-search/`).
-- `!video` tarda unos segundos por minuto de video, y mientras tanto los demás comandos esperan su turno (el router atiende de a uno).
-- Descargar de YouTube va contra sus términos y la cuenta cuyas cookies se usan puede ser marcada. Las cookies vencen cada tanto: se repite `!ytcookies`. Algunos videos (ej. Vevo) pueden no descargarse; en ese caso llega el link. La IP del servidor recibe límites (429) si se hacen muchos pedidos seguidos.
+- YouTube, Dailymotion y Google News pueden cambiar su HTML o su API. Cada uno está aislado en su carpeta (`youtube-search/`, `youtube-download/`, `video-search/`, `news/`).
+- `!noticias` decodifica los links de Google News con un servicio interno no oficial; si Google lo cambia, siguen llegando título, medio, fecha y link de Google, sin resumen.
+- `!video`, `!youtube` y `!audio` tardan unos segundos por descarga (más de 90 min de YouTube: varios minutos), y mientras tanto los demás comandos esperan su turno (el router atiende de a uno).
+- Descargar de YouTube va contra sus términos y la cuenta cuyas cookies se usan puede ser marcada. Las cookies vencen cada tanto: se repite `!ytcookies`. Los videos con licencia (música de Vevo, anime) no se descargan desde la IP de un servidor ni con tokens PO (probado); en ese caso llega el link. La IP del servidor recibe límites (429) si se hacen muchos pedidos seguidos.
 - `!twitter` va contra las reglas de X: la cuenta usada puede ser bloqueada o suspendida. Se recomienda una cuenta secundaria.
 - X puede pedir verificar el inicio de sesión (código por email o captcha) al entrar desde un servidor; sin poder recibir códigos, el inicio de sesión fallaría.
 - X cambia seguido su API interna. Lo más probable es que la primera prueba real requiera ajustes, todos dentro de `x-feed/`. El generador de `x-client-transaction-id` hoy no funciona con la web nueva de X; el pedido se envía sin ese encabezado.
-- Aquí el bot vive mientras esta sesión esté activa; para 24/7 hay que desplegarlo en la nube (paso 6).
+- Aquí el bot vive mientras la sesión de Claude Code esté activa; para 24/7 hay que desplegarlo en la nube (paso 6). En cada sesión nueva hay que volver a vincular WhatsApp y repetir `!ytcookies` (ver `HANDOFF.md`).
+- **Google Imágenes** se evaluó y se descartó: sin navegador exige JavaScript, desde servidores se bloquea, y usar las cookies de `google.com` expondría toda la cuenta de Google. La opción correcta sería la API oficial (Custom Search) con una clave propia.
