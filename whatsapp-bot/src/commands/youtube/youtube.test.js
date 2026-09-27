@@ -15,6 +15,7 @@ function ctx(args) {
       text: async (text) => replies.push({ text }),
       link: async (link) => replies.push({ link }),
       video: async (file, caption) => replies.push({ video: file, caption }),
+      audio: async (file) => replies.push({ audio: file }),
     },
   };
 }
@@ -40,8 +41,8 @@ function downloader({ configured = true, fail = false } = {}) {
   };
 }
 
-function command({ video = VIDEO, dl = downloader(), find } = {}) {
-  return createYoutubeCommand({ findFirstVideo: find ?? (async () => video), downloader: dl });
+function command({ video = VIDEO, dl = downloader(), find, mode } = {}) {
+  return createYoutubeCommand({ findFirstVideo: find ?? (async () => video), downloader: dl, mode });
 }
 
 describe('parseArgs', () => {
@@ -83,7 +84,7 @@ describe('!youtube con sesión de YouTube', () => {
       { text: 'Descargando "Gatos" (3:15)...' },
       { video: '/tmp/parte-0.mp4', caption: `Gatos\n${VIDEO.url}` },
     ]);
-    assert.deepEqual(dl.calls.downloads, [{ url: VIDEO.url, durationSeconds: 195, parts: 1 }]);
+    assert.deepEqual(dl.calls.downloads, [{ url: VIDEO.url, durationSeconds: 195, parts: 1, mode: 'video' }]);
     assert.equal(dl.calls.cleaned, 1);
   });
 
@@ -156,4 +157,47 @@ test('si la búsqueda falla, avisa sin romperse', async () => {
     },
   }).run(c);
   assert.deepEqual(c.replies, [{ text: 'No encontré videos de YouTube para "gatos"' }]);
+});
+
+describe('!audio (mismo comando, modo audio)', () => {
+  test('nombre, alias y uso', () => {
+    const cmd = command({ mode: 'audio' });
+    assert.equal(cmd.name, 'audio');
+    assert.deepEqual(cmd.aliases, ['yta']);
+    assert.equal(cmd.usage, 'audio [1-6] <búsqueda>');
+  });
+
+  test('mismas partes que el video: link en el primer mensaje y después los audios', async () => {
+    const c = ctx('3 podcast');
+    const dl = downloader();
+    await command({ video: { ...VIDEO, duration: '40:00' }, dl, mode: 'audio' }).run(c);
+    assert.deepEqual(c.replies, [
+      { text: `🎧 Descargando el audio de "Gatos" (40:00) en 3 partes de 5 min...\n${VIDEO.url}` },
+      { audio: '/tmp/parte-0.mp4' },
+      { audio: '/tmp/parte-1.mp4' },
+      { audio: '/tmp/parte-2.mp4' },
+    ]);
+    assert.deepEqual(dl.calls.downloads, [{ url: VIDEO.url, durationSeconds: 2400, parts: 3, mode: 'audio' }]);
+    assert.equal(dl.calls.cleaned, 1);
+  });
+
+  test('máximo 6 partes y avisa, igual que el video', async () => {
+    const c = ctx('10 podcast');
+    await command({ video: { ...VIDEO, duration: '2:00:00' }, mode: 'audio' }).run(c);
+    assert.equal(c.replies.filter((r) => r.audio).length, 6);
+    assert.equal(c.replies.at(-1).text, 'Solo se envían los primeros 30 minutos (6 partes).');
+  });
+
+  test('sin sesión de YouTube: link y cómo activarla', async () => {
+    const c = ctx('podcast');
+    await command({ dl: downloader({ configured: false }), mode: 'audio' }).run(c);
+    assert.ok(c.replies[0].link);
+    assert.match(c.replies[1].text, /!ytcookies/);
+  });
+
+  test('si la descarga falla: link con aviso de audio', async () => {
+    const c = ctx('podcast');
+    await command({ dl: downloader({ fail: true }), mode: 'audio' }).run(c);
+    assert.equal(c.replies.at(-1).text, 'No pude descargar el audio, te dejo el link.');
+  });
 });

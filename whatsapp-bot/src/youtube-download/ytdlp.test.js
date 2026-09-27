@@ -142,17 +142,16 @@ describe('downloadYoutube', () => {
 describe('modo audio', () => {
   const base = { cookiesFile: '/c.txt', ytdlpPath: '/bin/yt-dlp', ffmpegPath: '/bin/ffmpeg', mode: MODES.audio };
 
-  test('pide solo audio m4a y parte cada 1 hora, máximo 2 partes', () => {
+  test('pide solo audio m4a, con las mismas partes que el video (5 min, máx. 6)', () => {
     const args = buildArgs({ url: URL_OK, cookiesFile: '/c', ffmpegPath: 'ffmpeg', output: 'o', mode: MODES.audio });
     assert.equal(args[args.indexOf('-f') + 1], 'ba[ext=m4a]/ba');
     assert.ok(args.includes('-x'));
     assert.equal(args[args.indexOf('--audio-format') + 1], 'm4a');
     assert.ok(!args.includes('--merge-output-format'));
-    assert.equal(countParts(45 * 60, 2, MODES.audio), 1);
-    assert.equal(countParts(90 * 60, 2, MODES.audio), 2);
-    assert.equal(countParts(5 * 60 * 60, 2, MODES.audio), 2);
-    const split = buildSplitArgs('/tmp/a.m4a', '/tmp/parte-%02d.m4a', 7200, MODES.audio);
-    assert.equal(split[split.indexOf('-segment_time') + 1], '3600');
+    assert.equal(MODES.audio.partSeconds, MODES.video.partSeconds);
+    assert.equal(MODES.audio.maxParts, MODES.video.maxParts);
+    assert.equal(countParts(12 * 60, 3, MODES.audio), 3);
+    assert.equal(countParts(60 * 60, 10, MODES.audio), 6);
   });
 
   test('audio corto: un solo archivo m4a', async () => {
@@ -161,22 +160,23 @@ describe('modo audio', () => {
       calls.push(cmd);
       await writeFile(args[args.indexOf('-o') + 1].replace('%(ext)s', 'm4a'), Buffer.alloc(100_000));
     };
-    const result = await downloadYoutube(URL_OK, { ...base, durationSeconds: 45 * 60, parts: 2, runProcess });
+    const result = await downloadYoutube(URL_OK, { ...base, durationSeconds: 4 * 60, parts: 3, runProcess });
     assert.deepEqual(calls, ['/bin/yt-dlp']);
     assert.ok(result.files[0].endsWith('/video.m4a'));
     await result.cleanup();
   });
 
-  test('audio de 3 horas: baja solo las primeras 2 y las divide en 2 partes', async () => {
+  test('audio largo: recorta lo pedido y lo divide en partes m4a de 5 min', async () => {
     const calls = [];
     const runProcess = async (cmd, args) => {
       calls.push({ cmd, args });
       if (cmd.endsWith('yt-dlp')) await writeFile(args[args.indexOf('-o') + 1].replace('%(ext)s', 'm4a'), Buffer.alloc(100_000));
-      else for (const i of [0, 1]) await writeFile(args.at(-1).replace('%02d', `0${i}`), Buffer.alloc(100_000));
+      else for (const i of [0, 1, 2]) await writeFile(args.at(-1).replace('%02d', `0${i}`), Buffer.alloc(100_000));
     };
-    const result = await downloadYoutube(URL_OK, { ...base, durationSeconds: 3 * 60 * 60, parts: 2, runProcess });
-    assert.equal(calls[0].args[calls[0].args.indexOf('--download-sections') + 1], '*0-7200');
-    assert.deepEqual(result.files.map((f) => f.split('/').pop()), ['parte-00.m4a', 'parte-01.m4a']);
+    const result = await downloadYoutube(URL_OK, { ...base, durationSeconds: 60 * 60, parts: 3, runProcess });
+    assert.equal(calls[1].args[calls[1].args.indexOf('-t') + 1], '900');
+    assert.equal(calls[1].args[calls[1].args.indexOf('-segment_time') + 1], '300');
+    assert.deepEqual(result.files.map((f) => f.split('/').pop()), ['parte-00.m4a', 'parte-01.m4a', 'parte-02.m4a']);
     await result.cleanup();
   });
 });

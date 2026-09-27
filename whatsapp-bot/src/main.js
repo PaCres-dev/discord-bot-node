@@ -29,25 +29,15 @@ const router = createRouter({
     youtubeSearch,
     youtubeDownloader: {
       isConfigured: () => cookies.hasCookiesFile(youtubeCookiesFile),
-      download: (url, { durationSeconds, parts }) =>
+      download: (url, { durationSeconds, parts, mode }) =>
         ytdlp.downloadYoutube(url, {
           cookiesFile: youtubeCookiesFile,
           durationSeconds,
           parts,
+          mode: ytdlp.MODES[mode],
           ytdlpPath: config.ytdlpPath,
           ffmpegPath: config.ffmpegPath,
         }),
-      downloadAudio: (url, { durationSeconds }) =>
-        ytdlp.downloadYoutube(url, {
-          cookiesFile: youtubeCookiesFile,
-          durationSeconds,
-          parts: ytdlp.AUDIO_MAX_PARTS,
-          mode: ytdlp.MODES.audio,
-          ytdlpPath: config.ytdlpPath,
-          ffmpegPath: config.ffmpegPath,
-        }),
-      audioPartMinutes: ytdlp.AUDIO_PART_SECONDS / 60,
-      audioMaxParts: ytdlp.AUDIO_MAX_PARTS,
       parseDuration: ytdlp.parseDuration,
       countParts: ytdlp.countParts,
       partMinutes: ytdlp.PART_SECONDS / 60,

@@ -23,14 +23,12 @@ export const FORMAT = [
   '18',
 ].join('/');
 // Solo audio (!audio): m4a/AAC, que WhatsApp reproduce directo (~1 MB por minuto).
-// Se envía completo hasta 2 horas, en partes de 1 hora (≈ 58 MB cada una).
+// Mismas partes que el video: 5 minutos, como máximo 6.
 export const AUDIO_FORMAT = 'ba[ext=m4a]/ba';
-export const AUDIO_PART_SECONDS = 60 * 60;
-export const AUDIO_MAX_PARTS = 2;
 
 export const MODES = Object.freeze({
   video: { ext: 'mp4', format: FORMAT, partSeconds: PART_SECONDS, maxParts: MAX_PARTS, outputArgs: ['--merge-output-format', 'mp4'] },
-  audio: { ext: 'm4a', format: AUDIO_FORMAT, partSeconds: AUDIO_PART_SECONDS, maxParts: AUDIO_MAX_PARTS, outputArgs: ['-x', '--audio-format', 'm4a'] },
+  audio: { ext: 'm4a', format: AUDIO_FORMAT, partSeconds: PART_SECONDS, maxParts: MAX_PARTS, outputArgs: ['-x', '--audio-format', 'm4a'] },
 });
 const TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -87,13 +85,13 @@ export function buildArgs({ url, cookiesFile, ffmpegPath, output, seconds = null
   ];
 }
 
-// Cuántas partes salen de un video (5 min para video, 1 h para audio), con el pedido y el máximo.
+// Cuántas partes de 5 minutos salen de un video, con el pedido y el máximo.
 export function countParts(durationSeconds, requested, mode = MODES.video) {
   const available = Math.max(1, Math.ceil(durationSeconds / mode.partSeconds));
   return Math.min(available, Math.max(1, requested), mode.maxParts);
 }
 
-// Divide el archivo en partes (5 min video, 1 h audio) sin volver a codificar (en video, los cortes
+// Divide el archivo en partes de 5 minutos sin volver a codificar (en video, los cortes
 // caen en el cuadro clave más cercano). Con `limitSeconds`, usa solo ese tramo inicial.
 export function buildSplitArgs(input, outputPattern, limitSeconds = null, mode = MODES.video) {
   return [
@@ -106,7 +104,7 @@ export function buildSplitArgs(input, outputPattern, limitSeconds = null, mode =
   ];
 }
 
-// Descarga los primeros `parts` × (5 min video / 1 h audio) y lo devuelve en partes.
+// Descarga los primeros `parts` × 5 minutos (video o solo audio) y lo devuelve en partes.
 // Devuelve { files: [...], cleanup }.
 export async function downloadYoutube(
   url,
