@@ -1,0 +1,4 @@
+node_modules/
+auth/
+*.log
+test-image.jpg

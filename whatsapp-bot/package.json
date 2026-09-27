@@ -1,0 +1,21 @@
+{
+  "name": "whatsapp-image-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bot de WhatsApp que responde a !img <texto> con una imagen",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test:search": "node src/test-search.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
+    "https-proxy-agent": "^9.1.0",
+    "pino": "^10.3.1",
+    "undici": "^7.30.0"
+  }
+}
